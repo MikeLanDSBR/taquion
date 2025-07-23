@@ -1,0 +1,9 @@
+// Arquivo: main.taq
+
+func main() int {
+    // 1. Declara uma nova variável 'x' e atribui o valor 10 a ela.
+    let x = 10;
+    
+    // 2. Retorna o valor armazenado na variável 'x'.
+    return x;
+}

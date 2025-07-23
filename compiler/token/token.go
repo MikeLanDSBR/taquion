@@ -41,6 +41,7 @@ const (
 	// Palavras-chave
 	FUNCTION = "FUNCTION"
 	RETURN   = "RETURN"
+	LET      = "LET"
 )
 
 // keywords é um mapa que associa as strings das palavras-chave aos seus
@@ -48,6 +49,7 @@ const (
 var keywords = map[string]TokenType{
 	"func":   FUNCTION,
 	"return": RETURN,
+	"let":    LET,
 }
 
 // LookupIdent verifica se um identificador é uma palavra-chave reservada.

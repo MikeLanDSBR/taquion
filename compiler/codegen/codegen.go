@@ -1,54 +1,95 @@
-// compiler/codegen/codegen.go
-
+// O pacote codegen é responsável por traduzir a Árvore Sintática Abstrata (AST)
+// para a Representação Intermediária (IR) do LLVM.
 package codegen
 
 import (
+	"fmt"
 	"strconv"
-
 	"taquion/compiler/ast"
 
-	"github.com/llir/llvm/ir"
-	"github.com/llir/llvm/ir/constant"
-	"github.com/llir/llvm/ir/types"
+	"tinygo.org/x/go-llvm" // A biblioteca correta e mantida
 )
 
-// Generate traduz a AST de um programa Taquion para um módulo LLVM IR.
-func Generate(program *ast.Program) *ir.Module {
-	module := ir.NewModule()
-	mainFunc := module.NewFunc("main", types.I32)
-	entryBlock := mainFunc.NewBlock("entry")
+// CodeGenerator mantém o estado durante a geração de código.
+type CodeGenerator struct {
+	module      llvm.Module
+	builder     llvm.Builder
+	context     llvm.Context
+	symbolTable map[string]llvm.Value // Tabela de símbolos para rastrear variáveis.
+}
 
-	// CORREÇÃO: Itera nas declarações para encontrar a FUNÇÃO "main".
+// NewCodeGenerator cria uma nova instância do gerador de código.
+func NewCodeGenerator() *CodeGenerator {
+	// A API do go-llvm requer um "Contexto" para gerenciar a memória e os tipos.
+	ctx := llvm.NewContext()
+	return &CodeGenerator{
+		context:     ctx,
+		module:      ctx.NewModule("main_module"),
+		builder:     ctx.NewBuilder(),
+		symbolTable: make(map[string]llvm.Value),
+	}
+}
+
+// Generate é o ponto de entrada que traduz a AST para um módulo LLVM.
+func (c *CodeGenerator) Generate(program *ast.Program) llvm.Module {
 	for _, stmt := range program.Statements {
 		if funcDecl, ok := stmt.(*ast.FunctionDeclaration); ok && funcDecl.Name.Value == "main" {
+			// Tipos são obtidos através do contexto, ex: c.context.Int32Type().
+			funcType := llvm.FunctionType(c.context.Int32Type(), []llvm.Type{}, false)
+			mainFunc := llvm.AddFunction(c.module, "main", funcType)
+			entryBlock := llvm.AddBasicBlock(mainFunc, "entry")
+			c.builder.SetInsertPointAtEnd(entryBlock)
 
-			// Agora, itera dentro do CORPO da função encontrada.
+			// Gera o código para o corpo da função.
 			for _, bodyStmt := range funcDecl.Body.Statements {
-				// Procuramos pela declaração de retorno DENTRO do corpo.
-				if returnStmt, ok := bodyStmt.(*ast.ReturnStatement); ok {
-
-					// Verificamos se o valor de retorno é um número inteiro.
-					if intLit, ok := returnStmt.ReturnValue.(*ast.IntegerLiteral); ok {
-						val, _ := strconv.ParseInt(intLit.TokenLiteral(), 10, 32)
-						returnValue := constant.NewInt(types.I32, val)
-
-						// Gera a instrução de retorno que estava faltando!
-						entryBlock.NewRet(returnValue)
-						break // Para o loop interno, já que encontramos o return.
-					}
-				}
+				c.genStatement(bodyStmt)
 			}
-			break // Para o loop externo, já que encontramos e processamos a função main.
+			break
 		}
 	}
 
-	// MEDIDA DE SEGURANÇA:
-	// Se, por algum motivo, o bloco `entry` ainda não tiver um terminador
-	// (ex: função main vazia), adicionamos um `return 0` padrão para garantir um IR válido.
-	if entryBlock.Term == nil {
-		defaultReturn := constant.NewInt(types.I32, 0)
-		entryBlock.NewRet(defaultReturn)
+	// CORRIGIDO: A forma correta e final de verificar se um bloco não tem terminador,
+	// usando os métodos que você encontrou.
+	// 1. Pega o bloco de inserção atual do builder.
+	currentBlock := c.builder.GetInsertBlock()
+	// 2. Pega a última instrução do bloco.
+	lastInst := currentBlock.LastInstruction()
+	// 3. Verifica se a última instrução não existe (.IsNil()) OU se ela não é um terminador.
+	//    Um terminador é uma instrução como Ret, Br (Branch), Switch, etc.
+	if lastInst.IsNil() || lastInst.IsAReturnInst().IsNil() {
+		// Adicionamos um `return 0` padrão se nenhum `return` explícito for encontrado.
+		c.builder.CreateRet(llvm.ConstInt(c.context.Int32Type(), 0, false))
 	}
 
-	return module
+	return c.module
+}
+
+// genStatement gera código para uma única declaração.
+func (c *CodeGenerator) genStatement(stmt ast.Statement) {
+	switch node := stmt.(type) {
+	case *ast.LetStatement:
+		val := c.genExpression(node.Value)
+		ptr := c.builder.CreateAlloca(c.context.Int32Type(), node.Name.Value)
+		c.builder.CreateStore(val, ptr)
+		c.symbolTable[node.Name.Value] = ptr
+	case *ast.ReturnStatement:
+		val := c.genExpression(node.ReturnValue)
+		c.builder.CreateRet(val)
+	}
+}
+
+// genExpression gera código para uma única expressão.
+func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
+	switch node := expr.(type) {
+	case *ast.IntegerLiteral:
+		val, _ := strconv.ParseInt(node.TokenLiteral(), 10, 64)
+		return llvm.ConstInt(c.context.Int32Type(), uint64(val), false)
+	case *ast.Identifier:
+		if ptr, ok := c.symbolTable[node.Value]; ok {
+			return c.builder.CreateLoad(c.context.Int32Type(), ptr, node.Value+"_val")
+		}
+		panic(fmt.Sprintf("variável não definida: %s", node.Value))
+	default:
+		return llvm.Value{}
+	}
 }

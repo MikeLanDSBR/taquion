@@ -95,3 +95,13 @@ type BlockStatement struct {
 
 func (bs *BlockStatement) statementNode()       {}
 func (bs *BlockStatement) TokenLiteral() string { return bs.Token.Literal }
+
+// LetStatement representa uma declaração de variável: `let <nome> = <valor>;`
+type LetStatement struct {
+	Token token.Token // O token `token.LET`.
+	Name  *Identifier
+	Value Expression
+}
+
+func (ls *LetStatement) statementNode()       {}
+func (ls *LetStatement) TokenLiteral() string { return ls.Token.Literal }

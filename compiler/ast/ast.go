@@ -60,3 +60,38 @@ type ExpressionStatement struct {
 
 func (es *ExpressionStatement) statementNode()       {}
 func (es *ExpressionStatement) TokenLiteral() string { return es.Token.Literal }
+
+// IntegerLiteral representa um literal numérico inteiro. Ex: 42
+type IntegerLiteral struct {
+	Token token.Token // O token `token.INT`.
+	Value int64
+}
+
+func (il *IntegerLiteral) expressionNode()      {}
+func (il *IntegerLiteral) TokenLiteral() string { return il.Token.Literal }
+
+// -----------------------------------------------------------------
+// ADICIONE AS DUAS STRUCTS ABAIXO QUE ESTAVAM FALTANDO
+// -----------------------------------------------------------------
+
+// FunctionDeclaration representa a declaração de uma função.
+// Ex: func main() int { ... }
+type FunctionDeclaration struct {
+	Token      token.Token // O token 'func'
+	Name       *Identifier
+	Parameters []*Identifier
+	ReturnType *Identifier // Simplificando, o tipo de retorno é um identificador
+	Body       *BlockStatement
+}
+
+func (fd *FunctionDeclaration) statementNode()       {}
+func (fd *FunctionDeclaration) TokenLiteral() string { return fd.Token.Literal }
+
+// BlockStatement representa um bloco de código entre chaves: `{ <statements> }`
+type BlockStatement struct {
+	Token      token.Token // O token '{'
+	Statements []Statement
+}
+
+func (bs *BlockStatement) statementNode()       {}
+func (bs *BlockStatement) TokenLiteral() string { return bs.Token.Literal }

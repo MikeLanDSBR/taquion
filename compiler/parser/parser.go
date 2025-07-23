@@ -37,7 +37,7 @@ type Parser struct {
 }
 
 func New(l *lexer.Lexer) *Parser {
-	file, err := os.OpenFile("parser.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	file, err := os.OpenFile("log/parser.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
 		log.Fatalf("Erro ao abrir o arquivo de log do parser: %v", err)
 	}

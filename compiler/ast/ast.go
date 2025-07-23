@@ -70,9 +70,26 @@ type IntegerLiteral struct {
 func (il *IntegerLiteral) expressionNode()      {}
 func (il *IntegerLiteral) TokenLiteral() string { return il.Token.Literal }
 
-// -----------------------------------------------------------------
-// ADICIONE AS DUAS STRUCTS ABAIXO QUE ESTAVAM FALTANDO
-// -----------------------------------------------------------------
+// PrefixExpression representa uma expressão com um operador prefixo, como `!x` ou `-5`.
+type PrefixExpression struct {
+	Token    token.Token // O token do operador (ex: `!`, `-`).
+	Operator string
+	Right    Expression
+}
+
+func (pe *PrefixExpression) expressionNode()      {}
+func (pe *PrefixExpression) TokenLiteral() string { return pe.Token.Literal }
+
+// InfixExpression representa uma expressão infix (binária), como `x + y` ou `5 * 2`.
+type InfixExpression struct {
+	Token    token.Token // O token do operador (ex: `+`, `-`).
+	Left     Expression
+	Operator string
+	Right    Expression
+}
+
+func (ie *InfixExpression) expressionNode()      {}
+func (ie *InfixExpression) TokenLiteral() string { return ie.Token.Literal }
 
 // FunctionDeclaration representa a declaração de uma função.
 // Ex: func main() int { ... }

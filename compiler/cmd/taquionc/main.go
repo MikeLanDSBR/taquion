@@ -41,7 +41,7 @@ func main() {
 	generator := codegen.NewCodeGenerator()
 	module := generator.Generate(program)
 
-	outputFilename := "output.ll"
+	outputFilename := "../build/output.ll"
 	err = os.WriteFile(outputFilename, []byte(module.String()), 0644)
 	if err != nil {
 		fmt.Printf("Erro ao escrever o arquivo .ll: %s\n", err)

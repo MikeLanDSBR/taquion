@@ -29,6 +29,10 @@ const (
 	BANG     = "!"
 	ASTERISK = "*"
 	SLASH    = "/"
+	LT       = "<"  // Operador "menor que"
+	GT       = ">"  // Operador "maior que"
+	EQ       = "==" // Operador "igual a"
+	NOT_EQ   = "!=" // Operador "diferente de"
 
 	// Delimitadores
 	COMMA     = ","
@@ -39,9 +43,10 @@ const (
 	RBRACE    = "}"
 
 	// Palavras-chave
-	FUNCTION = "FUNCTION"
-	RETURN   = "RETURN"
-	LET      = "LET"
+	FUNCTION = "FUNCTION" // Palavra-chave 'func'
+	RETURN   = "RETURN"   // Palavra-chave 'return'
+	LET      = "LET"      // Palavra-chave 'let'
+	INT_TYPE = "INT_TYPE" // NOVO: Palavra-chave 'int' para tipo
 )
 
 // keywords é um mapa que associa as strings das palavras-chave aos seus
@@ -50,6 +55,7 @@ var keywords = map[string]TokenType{
 	"func":   FUNCTION,
 	"return": RETURN,
 	"let":    LET,
+	"int":    INT_TYPE, // NOVO: Adicionado 'int' como tipo
 }
 
 // LookupIdent verifica se um identificador é uma palavra-chave reservada.

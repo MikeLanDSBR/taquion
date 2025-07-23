@@ -1,8 +1,8 @@
 // Arquivo: add.taq
 
 func main() int {
-    let x = 5;
-    let y = 10;
+    let x = 24;
+    let y = 7;
     
     // Retorna o resultado da soma de x e y.
     return x + y;

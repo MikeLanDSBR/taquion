@@ -1,44 +1,59 @@
-// O pacote lexer é responsável por pegar o código-fonte como uma string
-// e transformá-lo em uma sequência de tokens.
+// O pacote lexer transforma o código-fonte em uma sequência de tokens.
 package lexer
 
 import "taquion/compiler/token"
 
-// Lexer é a estrutura que representa nosso analisador léxico.
-// Ele mantém o controle da posição atual no código para poder gerar tokens.
+// Lexer é o analisador léxico. Ele percorre o input e gera tokens.
 type Lexer struct {
-	input        string // O código-fonte completo.
-	position     int    // Posição atual no input (aponta para o caractere atual).
-	readPosition int    // Próxima posição de leitura no input (depois do caractere atual).
-	ch           byte   // O caractere atual que estamos examinando.
+	input        string // O código-fonte a ser analisado.
+	position     int    // Posição atual no input (aponta para l.ch).
+	readPosition int    // Próxima posição a ser lida.
+	ch           byte   // Caractere atual sob exame.
 }
 
-// New cria e retorna um novo Lexer pronto para ser usado.
+// New cria e retorna um novo Lexer.
 func New(input string) *Lexer {
 	l := &Lexer{input: input}
-	l.readChar() // Inicializa o lexer lendo o primeiro caractere.
+	l.readChar() // Lê o primeiro caractere para inicializar o estado.
 	return l
 }
 
-// readChar lê o próximo caractere do input e avança as posições.
+// readChar lê o próximo caractere do input e avança os ponteiros do lexer.
 func (l *Lexer) readChar() {
 	if l.readPosition >= len(l.input) {
-		l.ch = 0 // 0 é o código ASCII para "NUL", que usaremos para significar Fim de Arquivo (EOF).
+		l.ch = 0 // 0 é o código ASCII para "NUL", representando o fim do arquivo (EOF).
 	} else {
 		l.ch = l.input[l.readPosition]
 	}
 	l.position = l.readPosition
-	l.readPosition += 1
+	l.readPosition++
 }
 
-// NextToken é o coração do Lexer. Ele olha para o caractere atual (l.ch)
-// e retorna o token correspondente.
+// NextToken analisa o caractere atual e retorna o token correspondente.
 func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
 
-	l.skipWhitespace() // Ignora espaços em branco, tabulações e quebras de linha.
+	l.skipWhitespace() // Pula espaços em branco, quebras de linha, etc.
 
 	switch l.ch {
+	// Operadores
+	case '=':
+		tok = newToken(token.ASSIGN, l.ch)
+	case '+':
+		tok = newToken(token.PLUS, l.ch)
+	case '-':
+		tok = newToken(token.MINUS, l.ch)
+	case '!':
+		tok = newToken(token.BANG, l.ch)
+	case '*':
+		tok = newToken(token.ASTERISK, l.ch)
+	case '/':
+		tok = newToken(token.SLASH, l.ch)
+	// Delimitadores
+	case ';':
+		tok = newToken(token.SEMICOLON, l.ch)
+	case ',':
+		tok = newToken(token.COMMA, l.ch)
 	case '(':
 		tok = newToken(token.LPAREN, l.ch)
 	case ')':
@@ -47,66 +62,64 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.LBRACE, l.ch)
 	case '}':
 		tok = newToken(token.RBRACE, l.ch)
-	case 0: // Fim do arquivo
+	// Fim do arquivo
+	case 0:
 		tok.Literal = ""
 		tok.Type = token.EOF
 	default:
 		if isLetter(l.ch) {
-			// Se for uma letra, pode ser uma palavra-chave ou um identificador.
 			tok.Literal = l.readIdentifier()
-			tok.Type = token.LookupIdent(tok.Literal) // Verifica se é 'func' ou 'return'.
-			return tok                                // Retornamos aqui porque readIdentifier já avançou o cursor.
+			tok.Type = token.LookupIdent(tok.Literal)
+			return tok // Retorna aqui pois readIdentifier já avançou o cursor.
 		} else if isDigit(l.ch) {
-			// Se for um dígito, é um número inteiro.
 			tok.Type = token.INT
 			tok.Literal = l.readNumber()
-			return tok // Retornamos aqui porque readNumber já avançou o cursor.
+			return tok // Retorna aqui pois readNumber já avançou o cursor.
 		} else {
-			// Se não for nada conhecido, é um token ilegal.
 			tok = newToken(token.ILLEGAL, l.ch)
 		}
 	}
 
-	l.readChar() // Avança para o próximo caractere antes de retornar.
+	l.readChar() // Avança para o próximo caractere.
 	return tok
 }
 
-// newToken é uma função auxiliar para criar um novo token.
+// newToken cria um token a partir de um tipo e um caractere.
 func newToken(tokenType token.TokenType, ch byte) token.Token {
 	return token.Token{Type: tokenType, Literal: string(ch)}
 }
 
-// skipWhitespace avança o cursor do lexer ignorando todos os espaços em branco.
+// skipWhitespace consome todos os caracteres de espaço em branco consecutivos.
 func (l *Lexer) skipWhitespace() {
 	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
 		l.readChar()
 	}
 }
 
-// readIdentifier lê uma sequência de letras e retorna a palavra completa.
+// readIdentifier lê um identificador (letras e '_') e avança o cursor.
 func (l *Lexer) readIdentifier() string {
-	position := l.position
+	startPosition := l.position
 	for isLetter(l.ch) {
 		l.readChar()
 	}
-	return l.input[position:l.position]
+	return l.input[startPosition:l.position]
 }
 
-// isLetter verifica se um caractere é uma letra (simplificado para a-z, A-Z e _).
+// isLetter verifica se o caractere é uma letra ou underscore.
 func isLetter(ch byte) bool {
 	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'
 }
 
-// readNumber lê uma sequência de dígitos e retorna o número completo como string.
+// readNumber lê um número inteiro e avança o cursor.
 func (l *Lexer) readNumber() string {
-	position := l.position
+	startPosition := l.position
 	for isDigit(l.ch) {
 		l.readChar()
 	}
-	return l.input[position:l.position]
+	return l.input[startPosition:l.position]
 }
 
-// isDigit verifica se um caractere é um dígito.
+// isDigit verifica se o caractere é um número.
 func isDigit(ch byte) bool {
 	return '0' <= ch && ch <= '9'
 }

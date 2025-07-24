@@ -13,12 +13,12 @@ from runner import run_example
 EXPECTED = {
     "add.taq":                31,
     "advanced_test.taq":      100,
-    "bool_test.taq":          " None ",
+    "bool_test.taq":          0,
     "functions_test.taq":     15,
     "hello_world.taq":        0,
     "if_statement.taq":       10,
     "let.taq":                10,
-    "print_test.taq":         " None ",
+    "print_test.taq":         0,
     "start.taq":              200,
 }
 

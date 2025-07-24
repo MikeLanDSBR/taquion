@@ -1,26 +1,24 @@
-// O pacote token define as constantes e estruturas que representam as unidades
-// léxicas da linguagem Taquion, como palavras-chave, operadores e identificadores.
+// token.go — Define os tipos de token usados pelo lexer e parser da linguagem Taquion.
 package token
 
-// TokenType é o tipo que representa a categoria de um token (ex: "INT", "RETURN").
-// Usar uma string facilita a depuração.
+// TokenType define o tipo de um token (ex: "INT", "RETURN", "+")
 type TokenType string
 
-// Token representa uma unidade léxica individual identificada pelo Lexer.
+// Token representa uma unidade léxica da linguagem (ex: let, 42, +)
 type Token struct {
-	Type    TokenType // O tipo do token, ex: token.RETURN.
-	Literal string    // O valor literal do token, ex: "return".
+	Type    TokenType // Tipo do token (ex: LET, INT, IDENT, etc.)
+	Literal string    // Texto original do token
 }
 
-// Definição de todos os tipos de tokens da linguagem.
+// Tipos de tokens reconhecidos pela linguagem.
 const (
-	// Especiais
-	ILLEGAL = "ILEGAL" // Representa um token que não é reconhecido pela linguagem.
-	EOF     = "EOF"    // Representa o fim do arquivo (End Of File).
+	// Tokens especiais
+	ILLEGAL = "ILEGAL" // Token inválido/desconhecido
+	EOF     = "EOF"    // Fim de arquivo
 
-	// Identificadores e Literais
-	IDENT = "IDENT" // Nomes de variáveis e funções: main, x, minhaFuncao.
-	INT   = "INT"   // Literais de números inteiros: 123, 42.
+	// Identificadores e literais
+	IDENT = "IDENT" // Nome de variável, função, etc (ex: x, soma)
+	INT   = "INT"   // Número inteiro (ex: 123)
 
 	// Operadores
 	ASSIGN   = "="
@@ -29,10 +27,11 @@ const (
 	BANG     = "!"
 	ASTERISK = "*"
 	SLASH    = "/"
-	LT       = "<"  // Operador "menor que"
-	GT       = ">"  // Operador "maior que"
-	EQ       = "==" // Operador "igual a"
-	NOT_EQ   = "!=" // Operador "diferente de"
+
+	LT     = "<"
+	GT     = ">"
+	EQ     = "=="
+	NOT_EQ = "!="
 
 	// Delimitadores
 	COMMA     = ","
@@ -43,23 +42,26 @@ const (
 	RBRACE    = "}"
 
 	// Palavras-chave
-	FUNCTION = "FUNCTION" // Palavra-chave 'func'
-	RETURN   = "RETURN"   // Palavra-chave 'return'
-	LET      = "LET"      // Palavra-chave 'let'
-	INT_TYPE = "INT_TYPE" // NOVO: Palavra-chave 'int' para tipo
+	FUNCTION = "FUNCTION" // func
+	LET      = "LET"      // let
+	RETURN   = "RETURN"   // return
+	INT_TYPE = "INT_TYPE" // int (tipo)
+
+	IF   = "IF"   // if
+	ELSE = "ELSE" // else
 )
 
-// keywords é um mapa que associa as strings das palavras-chave aos seus
-// respectivos tipos de token.
+// keywords mapeia strings para seus tipos de token, se forem palavras-chave
 var keywords = map[string]TokenType{
 	"func":   FUNCTION,
-	"return": RETURN,
 	"let":    LET,
-	"int":    INT_TYPE, // NOVO: Adicionado 'int' como tipo
+	"return": RETURN,
+	"int":    INT_TYPE,
+	"if":     IF,
+	"else":   ELSE,
 }
 
-// LookupIdent verifica se um identificador é uma palavra-chave reservada.
-// Se for, retorna o TokenType da palavra-chave; senão, retorna token.IDENT.
+// LookupIdent retorna o tipo de token para identificadores ou palavras-chave.
 func LookupIdent(ident string) TokenType {
 	if tok, ok := keywords[ident]; ok {
 		return tok

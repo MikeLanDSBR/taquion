@@ -1,0 +1,28 @@
+// Arquivo: advanced_test.taq
+// Descrição: Um teste mais completo para o compilador Taquion,
+// utilizando todas as funcionalidades implementadas até agora.
+
+func main() int {
+    let a = 20;
+    let b = 30;
+    let resultado = 0;
+
+    // Testa a condição 'menor que' e a lógica do 'if'.
+    if a < b {
+        // Se a < b (verdadeiro), executa operações de soma e multiplicação.
+        // resultado = (a + b) * 2;
+        // Etapa 1: a + b = 20 + 30 = 50
+        // Etapa 2: 50 * 2 = 100
+        let temp = a + b;
+        resultado = temp * 2;
+    } else {
+        // Se a não for menor que b (falso), executa operações de subtração e divisão.
+        // Este bloco não deve ser executado neste teste.
+        // resultado = (b - a) / 2;
+        let temp = b - a;
+        resultado = temp / 2;
+    }
+
+    // O valor retornado deve ser 100.
+    return resultado;
+}

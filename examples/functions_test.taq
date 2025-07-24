@@ -1,0 +1,14 @@
+// Arquivo: functions_test.taq
+
+func add(a int, b int) int {
+    return a + b;
+}
+
+func main() int {
+    let cinco = 5;
+    let dez = 10;
+    
+    let resultado = add(cinco, dez); // Chamada de função!
+    
+    return resultado; // Deverá retornar 15
+}

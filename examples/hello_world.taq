@@ -1,15 +1,7 @@
 // Arquivo: hello_world.taq
-// Objetivo: O primeiro passo para imprimir "Hello, World!".
-// Este arquivo introduz o conceito de uma string na linguagem.
-// Espera-se que ele falhe na fase de lexer/parser até que o
-// suporte a strings seja implementado.
 
 func main() int {
-    // O objetivo é fazer o compilador entender a linha abaixo.
-    // Atualmente, ele não sabe o que as aspas duplas (") significam.
     let greeting = "Hello, World!";
-
-    // Por enquanto, vamos apenas retornar 0.
-    // O foco é apenas no parsing da string.
+    let another = greeting;
     return 0;
 }

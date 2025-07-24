@@ -1,26 +1,21 @@
-// token.go — Define os tipos de token usados pelo lexer e parser da linguagem Taquion.
 package token
 
-// TokenType define o tipo de um token (ex: "INT", "RETURN", "+")
+import (
+	"log"
+	"os"
+	"sync"
+)
+
 type TokenType string
 
-// Token representa uma unidade léxica da linguagem (ex: let, 42, +)
-type Token struct {
-	Type    TokenType // Tipo do token (ex: LET, INT, IDENT, etc.)
-	Literal string    // Texto original do token
-}
-
-// Tipos de tokens reconhecidos pela linguagem.
 const (
-	// Tokens especiais
-	ILLEGAL = "ILEGAL" // Token inválido/desconhecido
-	EOF     = "EOF"    // Fim de arquivo
+	ILLEGAL = "ILLEGAL"
+	EOF     = "EOF"
 
-	// Identificadores e literais
-	IDENT = "IDENT" // Nome de variável, função, etc (ex: x, soma)
-	INT   = "INT"   // Número inteiro (ex: 123)
+	IDENT  = "IDENT"
+	INT    = "INT"
+	STRING = "STRING"
 
-	// Operadores
 	ASSIGN   = "="
 	PLUS     = "+"
 	MINUS    = "-"
@@ -28,43 +23,85 @@ const (
 	ASTERISK = "*"
 	SLASH    = "/"
 
-	LT     = "<"
-	GT     = ">"
+	LT = "<"
+	GT = ">"
+
 	EQ     = "=="
 	NOT_EQ = "!="
 
-	// Delimitadores
 	COMMA     = ","
 	SEMICOLON = ";"
-	LPAREN    = "("
-	RPAREN    = ")"
-	LBRACE    = "{"
-	RBRACE    = "}"
 
-	// Palavras-chave
-	FUNCTION = "FUNCTION" // func
-	LET      = "LET"      // let
-	RETURN   = "RETURN"   // return
-	INT_TYPE = "INT_TYPE" // int (tipo)
+	LPAREN = "("
+	RPAREN = ")"
+	LBRACE = "{"
+	RBRACE = "}"
 
-	IF   = "IF"   // if
-	ELSE = "ELSE" // else
+	FUNCTION = "FUNCTION"
+	LET      = "LET"
+	RETURN   = "RETURN"
+	IF       = "IF"
+	ELSE     = "ELSE"
+	INT_TYPE = "INT_TYPE"
 )
 
-// keywords mapeia strings para seus tipos de token, se forem palavras-chave
+type Token struct {
+	Type    TokenType
+	Literal string
+}
+
+// Mapa keywords fixas
 var keywords = map[string]TokenType{
 	"func":   FUNCTION,
 	"let":    LET,
 	"return": RETURN,
-	"int":    INT_TYPE,
 	"if":     IF,
 	"else":   ELSE,
+	"int":    INT_TYPE,
 }
 
-// LookupIdent retorna o tipo de token para identificadores ou palavras-chave.
+// Logger global e mutex pra evitar rixa de concorrência
+var (
+	logger   *log.Logger
+	logFile  *os.File
+	initOnce sync.Once
+)
+
+// Inicializa o logger uma vez só, thread-safe
+func initLogger() {
+	initOnce.Do(func() {
+		var err error
+		logFile, err = os.OpenFile("log/token.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+		if err != nil {
+			log.Fatalf("Erro ao abrir arquivo de log token.log: %v", err)
+		}
+		logger = log.New(logFile, "TOKEN: ", log.LstdFlags)
+		logger.Println("=== Nova sessão de log do token iniciada ===")
+	})
+}
+
+// Chame essa função no `main` para fechar o arquivo quando o programa terminar.
+func CloseLogger() {
+	if logFile != nil {
+		logger.Println("=== Encerrando sessão de log do token ===")
+		logFile.Close()
+	}
+}
+
+// Cria token com log em arquivo
+func NewToken(t TokenType, lit string) Token {
+	initLogger()
+	logger.Printf("Criando token - Tipo: %-10s | Literal: %q\n", t, lit)
+	return Token{Type: t, Literal: lit}
+}
+
+// LookupIdent com log em arquivo
 func LookupIdent(ident string) TokenType {
+	initLogger()
 	if tok, ok := keywords[ident]; ok {
+		logger.Printf("LookupIdent: %q é palavra-chave -> TokenType: %q\n", ident, tok)
 		return tok
 	}
+	logger.Printf("LookupIdent: %q é IDENT padrão\n", ident)
 	return IDENT
 }

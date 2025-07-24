@@ -1,7 +1,7 @@
 LLVM_CFLAGS := $(shell llvm-config --cflags)
 LLVM_LDFLAGS := $(shell llvm-config --ldflags --libs --system-libs)
 
-TAQ_NAME   := advanced_test
+TAQ_NAME   := let
 TAQ_SRC    := ../examples/$(TAQ_NAME).taq
 BUILD_DIR  := ../build
 
@@ -38,3 +38,5 @@ build: taqc
 clean:
 	@echo "==> Limpando tudo em $(BUILD_DIR)"
 	rm -rf $(BUILD_DIR)
+
+# go build -o taquionc.exe -tags="llvm20 byollvm" ./cmd/taquionc

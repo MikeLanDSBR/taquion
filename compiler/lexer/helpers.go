@@ -3,6 +3,21 @@ package lexer
 
 import "taquion/compiler/token"
 
+// --- NOVA FUNÇÃO PARA LER STRINGS ---
+func (l *Lexer) readString() string {
+	// A posição inicial é depois do '"' de abertura
+	position := l.position + 1
+	for {
+		l.readChar()
+		// Continua lendo até encontrar o '"' de fechamento ou o fim do arquivo
+		if l.ch == '"' || l.ch == 0 {
+			break
+		}
+	}
+	// Retorna a fatia da string de entrada que está entre as aspas
+	return l.input[position:l.position]
+}
+
 // --- Funções Auxiliares ---
 
 func (l *Lexer) readChar() {

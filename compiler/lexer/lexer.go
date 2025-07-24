@@ -41,15 +41,19 @@ func (l *Lexer) NextToken() token.Token {
 	l.skipWhitespace()
 
 	switch l.ch {
+	// --- NOVO CASE PARA STRINGS ---
+	case '"':
+		tok.Type = token.STRING
+		tok.Literal = l.readString()
+	// ------------------------------
 	case '/':
 		if l.peekChar() == '/' {
 			l.logger.Println("Comentário '//' encontrado, pulando linha.")
 			l.skipComment()
-			return l.NextToken() // Chama recursivamente para obter o próximo token real
+			return l.NextToken()
 		}
 		tok = newToken(token.SLASH, l.ch)
 	case '=':
-		// Verifica se o próximo caractere é '=', formando '=='
 		if l.peekChar() == '=' {
 			ch := l.ch
 			l.readChar()
@@ -59,7 +63,6 @@ func (l *Lexer) NextToken() token.Token {
 			tok = newToken(token.ASSIGN, l.ch)
 		}
 	case '!':
-		// Verifica se o próximo caractere é '=', formando '!='
 		if l.peekChar() == '=' {
 			ch := l.ch
 			l.readChar()
@@ -68,12 +71,10 @@ func (l *Lexer) NextToken() token.Token {
 		} else {
 			tok = newToken(token.BANG, l.ch)
 		}
-	// --- CORREÇÃO PRINCIPAL ABAIXO ---
 	case '>':
-		tok = newToken(token.GT, l.ch) // GT = Greater Than
+		tok = newToken(token.GT, l.ch)
 	case '<':
-		tok = newToken(token.LT, l.ch) // LT = Less Than
-	// --- FIM DA CORREÇÃO ---
+		tok = newToken(token.LT, l.ch)
 	case ';':
 		tok = newToken(token.SEMICOLON, l.ch)
 	case '(':

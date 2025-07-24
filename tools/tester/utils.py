@@ -6,7 +6,6 @@ def check_executable(name: str) -> bool:
     return shutil.which(name) is not None
 
 def check_deps() -> list[str]:
-    # clang, go, llvm-config são executáveis
     deps = ["go", "clang", "llvm-config"]
     return [d for d in deps if not check_executable(d)]
 

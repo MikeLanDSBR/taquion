@@ -1,4 +1,4 @@
-// O pacote parser constrói a Árvore Sintática Abstrata (AST).
+// parser/parser.go
 package parser
 
 import (

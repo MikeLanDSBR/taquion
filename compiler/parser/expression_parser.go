@@ -1,3 +1,4 @@
+// parser/expression_parser.go
 package parser
 
 import (
@@ -55,6 +56,7 @@ func (p *Parser) registerInfixFns() {
 	p.registerInfix(token.NOT_EQ, p.parseInfixExpression)
 	p.registerInfix(token.LT, p.parseInfixExpression)
 	p.registerInfix(token.GT, p.parseInfixExpression)
+	p.registerPrefix(token.STRING, p.parseStringLiteral)
 }
 
 // A função parseAssignmentExpression foi removida deste arquivo.
@@ -78,9 +80,11 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 	}
 	return leftExp
 }
+
 func (p *Parser) parseIdentifier() ast.Expression {
 	return &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 }
+
 func (p *Parser) parseIntegerLiteral() ast.Expression {
 	lit := &ast.IntegerLiteral{Token: p.curToken}
 	value, err := strconv.ParseInt(p.curToken.Literal, 0, 64)
@@ -91,6 +95,11 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 	lit.Value = value
 	return lit
 }
+
+func (p *Parser) parseStringLiteral() ast.Expression {
+	return &ast.StringLiteral{Token: p.curToken, Value: p.curToken.Literal}
+}
+
 func (p *Parser) parsePrefixExpression() ast.Expression {
 	expression := &ast.PrefixExpression{
 		Token:    p.curToken,
@@ -100,6 +109,7 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 	expression.Right = p.parseExpression(PREFIX)
 	return expression
 }
+
 func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	expression := &ast.InfixExpression{
 		Token:    p.curToken,
@@ -111,6 +121,7 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	expression.Right = p.parseExpression(precedence)
 	return expression
 }
+
 func (p *Parser) parseGroupedExpression() ast.Expression {
 	p.nextToken()
 	exp := p.parseExpression(LOWEST)
@@ -119,6 +130,7 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	}
 	return exp
 }
+
 func (p *Parser) parseIfExpression() ast.Expression {
 	expression := &ast.IfExpression{Token: p.curToken}
 	p.nextToken()

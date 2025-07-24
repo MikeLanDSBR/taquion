@@ -79,9 +79,11 @@ func (c *CodeGenerator) genIfExpression(ie *ast.IfExpression) llvm.Value {
 			c.genStatement(stmt)
 		}
 	}
-	if c.builder.GetInsertBlock().LastInstruction().IsNil() || c.builder.GetInsertBlock().LastInstruction().IsAReturnInst().IsNil() {
+	elseLastInstr := elseBlock.LastInstruction()
+	if elseLastInstr.IsNil() || elseLastInstr.IsAReturnInst().IsNil() {
 		c.builder.CreateBr(mergeBlock)
 	}
+	c.builder.SetInsertPointAtEnd(elseBlock)
 	c.builder.SetInsertPointAtEnd(mergeBlock)
 	return llvm.Value{}
 }

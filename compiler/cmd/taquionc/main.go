@@ -39,6 +39,7 @@ func main() {
 
 	// CORRIGIDO: Cria uma instância do gerador e chama o método Generate.
 	generator := codegen.NewCodeGenerator()
+	defer generator.Close()
 	module := generator.Generate(program)
 
 	outputFilename := "../build/output.ll"

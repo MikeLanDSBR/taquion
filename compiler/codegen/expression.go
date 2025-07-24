@@ -1,4 +1,5 @@
 // Arquivo: codegen/expression.go
+// Função: Geração de código para todos os tipos de expressões (expressions).
 package codegen
 
 import (
@@ -10,27 +11,50 @@ import (
 	"tinygo.org/x/go-llvm"
 )
 
-// genExpression gera código LLVM IR para uma expressão AST e retorna o llvm.Value resultante.
 func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
+	defer c.traceOut(fmt.Sprintf("genExpression (%T)", expr))
+	c.traceIn(fmt.Sprintf("genExpression (%T)", expr))
+
 	switch node := expr.(type) {
+	// --- NOVO CASE PARA CHAMADA DE FUNÇÃO ---
+	case *ast.CallExpression:
+		c.logTrace(fmt.Sprintf("Gerando chamada para a função '%s'", node.Function.String()))
+
+		// Procura a função na tabela de símbolos.
+		calleeEntry, ok := c.getSymbol(node.Function.String())
+		if !ok {
+			panic(fmt.Sprintf("função não definida: %s", node.Function.String()))
+		}
+		callee := calleeEntry.Ptr
+
+		// Gera o código para cada argumento da chamada.
+		args := []llvm.Value{}
+		for _, arg := range node.Arguments {
+			args = append(args, c.genExpression(arg))
+		}
+
+		// Cria a instrução 'call'.
+		return c.builder.CreateCall(callee.Type().ElementType(), callee, args, "calltmp")
+
 	case *ast.IntegerLiteral:
+		c.logTrace(fmt.Sprintf("Gerando literal inteiro: %s", node.TokenLiteral()))
 		val, _ := strconv.ParseInt(node.TokenLiteral(), 10, 64)
 		return llvm.ConstInt(c.context.Int32Type(), uint64(val), false)
 
 	case *ast.StringLiteral:
-		// Ensina o compilador a criar uma constante de string global
-		// e retornar um ponteiro para ela (tipo i8*).
+		c.logTrace(fmt.Sprintf("Gerando literal de string: %q", node.Value))
 		return c.builder.CreateGlobalStringPtr(node.Value, "str_literal")
 
 	case *ast.Identifier:
-		if ptr, ok := c.symbolTable[node.Value]; ok {
-			return c.builder.CreateLoad(c.context.Int32Type(), ptr, node.Value+"_val")
+		c.logTrace(fmt.Sprintf("Carregando valor da variável '%s'", node.Value))
+		entry, ok := c.getSymbol(node.Value)
+		if !ok {
+			panic(fmt.Sprintf("variável não definida: %s", node.Value))
 		}
-		panic(fmt.Sprintf("variável não definida: %s", node.Value))
-
-	// O case para AssignmentExpression foi removido daqui.
+		return c.builder.CreateLoad(entry.Typ, entry.Ptr, node.Value)
 
 	case *ast.InfixExpression:
+		c.logTrace(fmt.Sprintf("Gerando expressão infixa com operador '%s'", node.Operator))
 		left := c.genExpression(node.Left)
 		right := c.genExpression(node.Right)
 		switch node.Operator {
@@ -43,13 +67,17 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 		case token.SLASH:
 			return c.builder.CreateSDiv(left, right, "divtmp")
 		case token.GT:
-			return c.builder.CreateICmp(llvm.IntSGT, left, right, "gttmp")
+			cmp := c.builder.CreateICmp(llvm.IntSGT, left, right, "gttmp")
+			return c.builder.CreateZExt(cmp, c.context.Int32Type(), "booltmp")
 		case token.LT:
-			return c.builder.CreateICmp(llvm.IntSLT, left, right, "lttmp")
+			cmp := c.builder.CreateICmp(llvm.IntSLT, left, right, "lttmp")
+			return c.builder.CreateZExt(cmp, c.context.Int32Type(), "booltmp")
 		case token.EQ:
-			return c.builder.CreateICmp(llvm.IntEQ, left, right, "eqtmp")
+			cmp := c.builder.CreateICmp(llvm.IntEQ, left, right, "eqtmp")
+			return c.builder.CreateZExt(cmp, c.context.Int32Type(), "booltmp")
 		case token.NOT_EQ:
-			return c.builder.CreateICmp(llvm.IntNE, left, right, "neqtmp")
+			cmp := c.builder.CreateICmp(llvm.IntNE, left, right, "neqtmp")
+			return c.builder.CreateZExt(cmp, c.context.Int32Type(), "booltmp")
 		default:
 			panic(fmt.Sprintf("operador infix não suportado: %s", node.Operator))
 		}
@@ -58,37 +86,42 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 		return c.genIfExpression(node)
 
 	default:
-		fmt.Printf("Expressão não suportada: %T\n", node)
-		return llvm.Value{}
+		panic(fmt.Sprintf("Expressão não suportada: %T\n", node))
 	}
 }
 
-// genIfExpression permanece o mesmo
 func (c *CodeGenerator) genIfExpression(ie *ast.IfExpression) llvm.Value {
-	condVal := c.genExpression(ie.Condition)
+	defer c.traceOut("genIfExpression")
+	c.traceIn("genIfExpression")
+
+	cond := c.genExpression(ie.Condition)
+	condVal := c.builder.CreateICmp(llvm.IntNE, cond, llvm.ConstInt(cond.Type(), 0, false), "ifcond")
+
 	function := c.builder.GetInsertBlock().Parent()
-	thenBlock := llvm.AddBasicBlock(function, "then")
-	elseBlock := llvm.AddBasicBlock(function, "else")
-	mergeBlock := llvm.AddBasicBlock(function, "merge")
+
+	thenBlock := c.context.AddBasicBlock(function, "then")
+	elseBlock := c.context.AddBasicBlock(function, "else")
+	mergeBlock := c.context.AddBasicBlock(function, "merge")
+
 	c.builder.CreateCondBr(condVal, thenBlock, elseBlock)
+
+	// --- Bloco 'then' ---
 	c.builder.SetInsertPointAtEnd(thenBlock)
-	for _, stmt := range ie.Consequence.Statements {
-		c.genStatement(stmt)
-	}
-	if c.builder.GetInsertBlock().LastInstruction().IsNil() || c.builder.GetInsertBlock().LastInstruction().IsAReturnInst().IsNil() {
+	c.genStatement(ie.Consequence)
+	if !isBlockTerminated(c.builder.GetInsertBlock()) {
 		c.builder.CreateBr(mergeBlock)
 	}
+
+	// --- Bloco 'else' ---
 	c.builder.SetInsertPointAtEnd(elseBlock)
 	if ie.Alternative != nil {
-		for _, stmt := range ie.Alternative.Statements {
-			c.genStatement(stmt)
-		}
+		c.genStatement(ie.Alternative)
 	}
-	elseLastInstr := elseBlock.LastInstruction()
-	if elseLastInstr.IsNil() || elseLastInstr.IsAReturnInst().IsNil() {
+	if !isBlockTerminated(c.builder.GetInsertBlock()) {
 		c.builder.CreateBr(mergeBlock)
 	}
-	c.builder.SetInsertPointAtEnd(elseBlock)
+
+	// --- Bloco 'merge' ---
 	c.builder.SetInsertPointAtEnd(mergeBlock)
 	return llvm.Value{}
 }

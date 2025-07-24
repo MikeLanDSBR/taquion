@@ -4,46 +4,95 @@ package codegen
 import (
 	"fmt"
 	"taquion/compiler/ast"
+
+	"tinygo.org/x/go-llvm"
 )
 
-// genStatement gera código LLVM IR para uma declaração AST.
 func (c *CodeGenerator) genStatement(stmt ast.Statement) {
+	defer c.traceOut(fmt.Sprintf("genStatement (%T)", stmt))
+	c.traceIn(fmt.Sprintf("genStatement (%T)", stmt))
+
 	switch node := stmt.(type) {
+	// --- NOVO CASE PARA DECLARAÇÃO DE FUNÇÃO ---
+	case *ast.FunctionDeclaration:
+		// Por enquanto, só lidamos com parâmetros int
+		paramTypes := []llvm.Type{}
+		for range node.Parameters {
+			paramTypes = append(paramTypes, c.context.Int32Type())
+		}
+
+		// Por enquanto, só lidamos com retorno int
+		retType := c.context.Int32Type()
+
+		funcType := llvm.FunctionType(retType, paramTypes, false)
+		function := llvm.AddFunction(c.module, node.Name.Value, funcType)
+
+		// Salva a função na tabela de símbolos para que possa ser chamada depois.
+		c.setSymbol(node.Name.Value, SymbolEntry{Ptr: function, Typ: funcType})
+
+		entryBlock := c.context.AddBasicBlock(function, "entry")
+		c.builder.SetInsertPointAtEnd(entryBlock)
+
+		// Cria um novo escopo para o corpo da função
+		c.pushScope()
+		defer c.popScope()
+
+		// Aloca espaço para os parâmetros e os copia para a tabela de símbolos
+		for i, param := range node.Parameters {
+			llvmParam := function.Param(i)
+			llvmParam.SetName(param.Name.Value)
+
+			ptr := c.builder.CreateAlloca(c.context.Int32Type(), param.Name.Value)
+			c.builder.CreateStore(llvmParam, ptr)
+			c.setSymbol(param.Name.Value, SymbolEntry{Ptr: ptr, Typ: c.context.Int32Type()})
+		}
+
+		// Gera o código para o corpo da função
+		c.genStatement(node.Body)
+
+		// Garante um terminador se não houver um 'return' explícito
+		if !isBlockTerminated(c.builder.GetInsertBlock()) {
+			// Se for a função main, retorna 0 por padrão. Para outras, pode ser um erro ou undefined behavior.
+			if node.Name.Value == "main" {
+				c.builder.CreateRet(llvm.ConstInt(c.context.Int32Type(), 0, false))
+			}
+		}
+
 	case *ast.LetStatement:
-		// Gera o código para a expressão (ex: 10 ou "Hello, World!").
+		c.logTrace(fmt.Sprintf("Gerando declaração 'let' para a variável '%s'", node.Name.Value))
 		val := c.genExpression(node.Value)
-
-		// --- MUDANÇA PRINCIPAL AQUI ---
-		// Em vez de sempre alocar para um inteiro (i32), agora alocamos
-		// espaço baseado no tipo do valor que recebemos.
-		// Se val for um i32, aloca espaço para i32.
-		// Se val for um i8* (ponteiro de string), aloca espaço para um i8*.
-		ptr := c.builder.CreateAlloca(val.Type(), node.Name.Value)
-
+		typ := val.Type()
+		ptr := c.builder.CreateAlloca(typ, node.Name.Value)
 		c.builder.CreateStore(val, ptr)
-		c.symbolTable[node.Name.Value] = ptr
+		c.setSymbol(node.Name.Value, SymbolEntry{Ptr: ptr, Typ: typ})
 
 	case *ast.AssignmentStatement:
-		// Gera o código para o novo valor.
+		c.logTrace(fmt.Sprintf("Gerando reatribuição para a variável '%s'", node.Name.Value))
 		val := c.genExpression(node.Value)
-		// Procura a variável na tabela de símbolos.
-		ptr, ok := c.symbolTable[node.Name.Value]
+		entry, ok := c.getSymbol(node.Name.Value)
 		if !ok {
 			panic(fmt.Sprintf("atribuição a variável não declarada: %s", node.Name.Value))
 		}
-		// Armazena (store) o novo valor no ponteiro existente.
-		// NOTA: Esta parte também precisará de uma atualização de tipo mais tarde,
-		// mas para 'let' a mudança principal já foi feita acima.
-		c.builder.CreateStore(val, ptr)
+		c.builder.CreateStore(val, entry.Ptr)
 
 	case *ast.ReturnStatement:
+		c.logTrace("Gerando declaração 'return'")
 		val := c.genExpression(node.ReturnValue)
 		c.builder.CreateRet(val)
 
 	case *ast.ExpressionStatement:
+		c.logTrace("Gerando declaração de expressão")
 		c.genExpression(node.Expression)
 
+	case *ast.BlockStatement:
+		c.pushScope()
+		defer c.popScope()
+		c.logTrace("Gerando declaração de bloco (novo escopo)")
+		for _, s := range node.Statements {
+			c.genStatement(s)
+		}
+
 	default:
-		fmt.Printf("Declaração não suportada: %T\n", node)
+		panic(fmt.Sprintf("Declaração não suportada: %T\n", node))
 	}
 }

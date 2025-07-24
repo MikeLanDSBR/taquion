@@ -17,6 +17,11 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 		val, _ := strconv.ParseInt(node.TokenLiteral(), 10, 64)
 		return llvm.ConstInt(c.context.Int32Type(), uint64(val), false)
 
+	case *ast.StringLiteral:
+		// Ensina o compilador a criar uma constante de string global
+		// e retornar um ponteiro para ela (tipo i8*).
+		return c.builder.CreateGlobalStringPtr(node.Value, "str_literal")
+
 	case *ast.Identifier:
 		if ptr, ok := c.symbolTable[node.Value]; ok {
 			return c.builder.CreateLoad(c.context.Int32Type(), ptr, node.Value+"_val")

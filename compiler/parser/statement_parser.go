@@ -103,30 +103,71 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	return block
 }
 
-func (p *Parser) parseFunctionDeclaration() *ast.FunctionDeclaration {
+// --- FUNÇÃO MODIFICADA ---
+func (p *Parser) parseFunctionDeclaration() ast.Statement {
 	decl := &ast.FunctionDeclaration{Token: p.curToken}
+
 	if !p.expectPeek(token.IDENT) {
 		return nil
 	}
 	decl.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
 	if !p.expectPeek(token.LPAREN) {
 		return nil
 	}
-	p.nextToken()
-	for !p.curTokenIs(token.RPAREN) && !p.curTokenIs(token.EOF) {
+
+	// Chama a nova função auxiliar para analisar os parâmetros.
+	decl.Parameters = p.parseFunctionParameters()
+
+	// Analisa o tipo de retorno.
+	if !p.peekTokenIs(token.RBRACE) { // Se não for uma função sem retorno
 		p.nextToken()
+		decl.ReturnType = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 	}
-	if !p.curTokenIs(token.RPAREN) {
-		return nil
-	}
-	if !p.peekTokenIs(token.IDENT) && !p.peekTokenIs(token.INT_TYPE) {
-		return nil
-	}
-	p.nextToken()
-	decl.ReturnType = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
 	if !p.expectPeek(token.LBRACE) {
 		return nil
 	}
 	decl.Body = p.parseBlockStatement()
+
 	return decl
+}
+
+// --- NOVA FUNÇÃO AUXILIAR ---
+func (p *Parser) parseFunctionParameters() []*ast.Parameter {
+	params := []*ast.Parameter{}
+
+	// Se o próximo token for ')', não há parâmetros.
+	if p.peekTokenIs(token.RPAREN) {
+		p.nextToken()
+		return params
+	}
+
+	p.nextToken() // Avança para o nome do primeiro parâmetro.
+
+	param := &ast.Parameter{Token: p.curToken}
+	param.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+	p.nextToken() // Avança para o tipo do parâmetro.
+	param.Type = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	params = append(params, param)
+
+	// Continua analisando outros parâmetros enquanto encontrar vírgulas.
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken() // Pula a vírgula
+		p.nextToken() // Avança para o nome do próximo parâmetro
+
+		param := &ast.Parameter{Token: p.curToken}
+		param.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+		p.nextToken() // Avança para o tipo do parâmetro.
+		param.Type = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+		params = append(params, param)
+	}
+
+	if !p.expectPeek(token.RPAREN) {
+		return nil
+	}
+
+	return params
 }

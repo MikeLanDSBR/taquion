@@ -1,0 +1,11 @@
+// Arquivo: print_test.taq
+
+func main() int {
+    let valor = 100;
+    let mensagem = "O resultado é: ";
+
+    print(mensagem); // Imprime a string
+    print(valor);    // Imprime o número
+
+    return 0;
+}

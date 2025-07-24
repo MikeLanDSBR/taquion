@@ -1,0 +1,13 @@
+// Arquivo: bool_test.taq
+
+func main() int {
+    let a = 10;
+    let b = 20;
+    let a_eh_menor = a < b; // a_eh_menor agora é 'true'
+
+    if a_eh_menor {
+        return 1; // Verdadeiro
+    }
+
+    return 0; // Falso
+}

@@ -77,6 +77,10 @@ func (c *CodeGenerator) Generate(program *ast.Program) llvm.Module {
 				c.logTrace("Nenhum 'return' explícito encontrado no final da função 'main'. Adicionando 'return 0' padrão.")
 				c.builder.CreateRet(llvm.ConstInt(c.context.Int32Type(), 0, false))
 			}
+			if !isBlockTerminated(currentBlock) {
+				c.logTrace("Nenhum terminador explícito encontrado no final da função 'main'. Adicionando 'return 0' padrão.")
+				c.builder.CreateRet(llvm.ConstInt(c.context.Int32Type(), 0, false))
+			}
 			break
 		}
 	}
@@ -84,7 +88,19 @@ func (c *CodeGenerator) Generate(program *ast.Program) llvm.Module {
 	return c.module
 }
 
-// --- FUNÇÕES DE LOGGING AUXILIARES ---
+func isBlockTerminated(block llvm.BasicBlock) bool {
+	lastInst := block.LastInstruction()
+	if lastInst.IsNil() {
+		return false
+	}
+	opcode := lastInst.InstructionOpcode()
+	switch opcode {
+	case llvm.Ret, llvm.Br, llvm.Switch, llvm.IndirectBr, llvm.Invoke, llvm.Unreachable, llvm.Resume:
+		return true
+	default:
+		return false
+	}
+}
 
 func (c *CodeGenerator) logTrace(msg string) {
 	indent := ""

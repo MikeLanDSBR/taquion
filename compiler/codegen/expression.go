@@ -26,6 +26,7 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 			panic(fmt.Sprintf("função não definida: %s", node.Function.String()))
 		}
 		callee := calleeEntry.Ptr
+		calleeType := calleeEntry.Typ
 
 		// Gera o código para cada argumento da chamada.
 		args := []llvm.Value{}
@@ -34,7 +35,7 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 		}
 
 		// Cria a instrução 'call'.
-		return c.builder.CreateCall(callee.Type().ElementType(), callee, args, "calltmp")
+		return c.builder.CreateCall(calleeType, callee, args, "calltmp")
 
 	case *ast.IntegerLiteral:
 		c.logTrace(fmt.Sprintf("Gerando literal inteiro: %s", node.TokenLiteral()))

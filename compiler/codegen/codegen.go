@@ -1,4 +1,5 @@
 // Arquivo: codegen/codegen.go
+// Função: Ponto de entrada e funções principais do gerador de código.
 package codegen
 
 import (
@@ -18,11 +19,10 @@ type SymbolEntry struct {
 
 // CodeGenerator mantém o estado durante a geração de código.
 type CodeGenerator struct {
-	module  llvm.Module
-	builder llvm.Builder
-	context llvm.Context
-	// MODIFICADO: A tabela de símbolos agora é uma pilha de mapas para gerenciar escopo com tipos.
-	symbolTable []map[string]SymbolEntry
+	module      llvm.Module
+	builder     llvm.Builder
+	context     llvm.Context
+	symbolTable []map[string]SymbolEntry // Pilha de mapas para gerenciar escopo com tipos.
 
 	// --- CAMPOS DE LOGGING ---
 	logger           *log.Logger
@@ -39,11 +39,10 @@ func NewCodeGenerator() *CodeGenerator {
 
 	ctx := llvm.NewContext()
 	cg := &CodeGenerator{
-		context: ctx,
-		module:  ctx.NewModule("main_module"),
-		builder: ctx.NewBuilder(),
-		// Inicializa a pilha de escopos com um escopo global.
-		symbolTable:      []map[string]SymbolEntry{make(map[string]SymbolEntry)},
+		context:          ctx,
+		module:           ctx.NewModule("main_module"),
+		builder:          ctx.NewBuilder(),
+		symbolTable:      []map[string]SymbolEntry{make(map[string]SymbolEntry)}, // Escopo global
 		logger:           log.New(file, "CODEGEN: ", log.LstdFlags),
 		logFile:          file,
 		indentationLevel: 0,
@@ -75,7 +74,6 @@ func (c *CodeGenerator) Generate(program *ast.Program) llvm.Module {
 	return c.module
 }
 
-// isBlockTerminated verifica se um bloco básico já possui uma instrução de terminação.
 func isBlockTerminated(block llvm.BasicBlock) bool {
 	lastInst := block.LastInstruction()
 	if lastInst.IsNil() {
@@ -90,7 +88,7 @@ func isBlockTerminated(block llvm.BasicBlock) bool {
 	}
 }
 
-// --- NOVAS FUNÇÕES DE ESCOPO ---
+// --- FUNÇÕES DE ESCOPO ---
 
 func (c *CodeGenerator) pushScope() {
 	c.logTrace("=> Entrando em novo escopo")
@@ -104,13 +102,11 @@ func (c *CodeGenerator) popScope() {
 
 func (c *CodeGenerator) setSymbol(name string, entry SymbolEntry) {
 	c.logTrace(fmt.Sprintf("Definindo símbolo '%s' no escopo atual", name))
-	// Define o símbolo no escopo mais interno (o último da pilha).
 	c.symbolTable[len(c.symbolTable)-1][name] = entry
 }
 
 func (c *CodeGenerator) getSymbol(name string) (SymbolEntry, bool) {
 	c.logTrace(fmt.Sprintf("Procurando símbolo '%s'", name))
-	// Procura pelo símbolo do escopo mais interno para o mais externo.
 	for i := len(c.symbolTable) - 1; i >= 0; i-- {
 		if entry, ok := c.symbolTable[i][name]; ok {
 			c.logTrace(fmt.Sprintf("Símbolo '%s' encontrado no escopo %d", name, i))
@@ -125,7 +121,6 @@ func (c *CodeGenerator) getSymbol(name string) (SymbolEntry, bool) {
 
 func (c *CodeGenerator) logTrace(msg string) {
 	indent := ""
-	// A indentação agora reflete a profundidade do escopo.
 	for i := 0; i < len(c.symbolTable); i++ {
 		indent += "    "
 	}

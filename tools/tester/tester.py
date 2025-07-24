@@ -11,12 +11,15 @@ from builder import build_taquionc
 from runner import run_example
 
 EXPECTED = {
-    "add.taq":           31,
-    "let.taq":           10,
-    "if_statement.taq":  10,
-    "advanced_test.taq": 100,
-    "hello_world.taq":   0,
-    "start.taq":         200,
+    "add.taq":                31,
+    "advanced_test.taq":      100,
+    "bool_test.taq":          " None ",
+    "functions_test.taq":     15,
+    "hello_world.taq":        0,
+    "if_statement.taq":       10,
+    "let.taq":                10,
+    "print_test.taq":         " None ",
+    "start.taq":              200,
 }
 
 def pause():
@@ -75,13 +78,6 @@ def main():
 
                 status = "✅ OK" if passed else "❌ FAIL"
                 print(format_result(name, status, rc, expected, took))
-
-                if not passed:
-                    print("   ▶ Saída + logs:\n")
-                    print(output.strip())
-                    print()
-
-                total += took
 
             print(f"\n⏱️ Tempo total: {total:.2f}s")
             pause()

@@ -12,17 +12,16 @@ import (
 const (
 	_ int = iota
 	LOWEST
-	// ASSIGN foi removido daqui
 	EQUALS      // ==
 	LESSGREATER // > ou <
-	SUM         // + ou -
-	PRODUCT     // * ou /
+	SUM         // +
+	PRODUCT     // *
 	PREFIX      // -X ou !X
 	CALL        // myFunction(X)
 )
 
+// --- MODIFICAÇÃO: Adicione o token LPAREN ao mapa de precedências ---
 var precedences = map[token.TokenType]int{
-	// token.ASSIGN foi removido daqui
 	token.EQ:       EQUALS,
 	token.NOT_EQ:   EQUALS,
 	token.LT:       LESSGREATER,
@@ -31,7 +30,7 @@ var precedences = map[token.TokenType]int{
 	token.MINUS:    SUM,
 	token.SLASH:    PRODUCT,
 	token.ASTERISK: PRODUCT,
-	token.LPAREN:   CALL,
+	token.LPAREN:   CALL, // Adicionado para chamadas de função
 }
 
 // --- Funções de Registro ---
@@ -43,13 +42,13 @@ func (p *Parser) registerPrefixFns() {
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression)
 	p.registerPrefix(token.IF, p.parseIfExpression)
+
 }
 
 func (p *Parser) registerInfixFns() {
 	// A linha para parseAssignmentExpression foi removida daqui
 	p.registerInfix(token.PLUS, p.parseInfixExpression)
 	p.registerInfix(token.MINUS, p.parseInfixExpression)
-	// ... resto das funções infix inalteradas
 	p.registerInfix(token.SLASH, p.parseInfixExpression)
 	p.registerInfix(token.ASTERISK, p.parseInfixExpression)
 	p.registerInfix(token.EQ, p.parseInfixExpression)
@@ -57,6 +56,41 @@ func (p *Parser) registerInfixFns() {
 	p.registerInfix(token.LT, p.parseInfixExpression)
 	p.registerInfix(token.GT, p.parseInfixExpression)
 	p.registerPrefix(token.STRING, p.parseStringLiteral)
+	p.registerInfix(token.LPAREN, p.parseCallExpression)
+}
+
+// --- NOVA FUNÇÃO DE PARSING INFIX ---
+func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
+	callExpr := &ast.CallExpression{Token: p.curToken, Function: function}
+	callExpr.Arguments = p.parseExpressionList(token.RPAREN)
+	return callExpr
+}
+
+// --- NOVA FUNÇÃO AUXILIAR ---
+// parseExpressionList é uma função genérica para analisar listas de expressões separadas por vírgula.
+func (p *Parser) parseExpressionList(end token.TokenType) []ast.Expression {
+	list := []ast.Expression{}
+
+	// Se a lista estiver vazia (ex: call()).
+	if p.peekTokenIs(end) {
+		p.nextToken()
+		return list
+	}
+
+	p.nextToken()
+	list = append(list, p.parseExpression(LOWEST))
+
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken()
+		p.nextToken()
+		list = append(list, p.parseExpression(LOWEST))
+	}
+
+	if !p.expectPeek(end) {
+		return nil
+	}
+
+	return list
 }
 
 // A função parseAssignmentExpression foi removida deste arquivo.

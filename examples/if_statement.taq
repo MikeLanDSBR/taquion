@@ -1,8 +1,8 @@
-// Arquivo: if_statement.taq
+package main
 
-func main() int {
-    let x = 10;
-    let y = 5;
+func main() {
+    const x = 10;
+    const y = 5;
 
     if x > y {
         return x;

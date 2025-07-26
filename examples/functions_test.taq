@@ -1,14 +1,14 @@
-// Arquivo: functions_test.taq
+package main
 
-func add(a int, b int) int {
+func add(a, b){
     return a + b;
 }
 
-func main() int {
-    let cinco = 5;
-    let dez = 10;
+func main() {
+    const cinco = 5;
+    const dez = 10;
     
-    let resultado = add(cinco, dez); // Chamada de função!
+    const resultado = add(cinco, dez);
     
-    return resultado; // Deverá retornar 15
+    return resultado;
 }

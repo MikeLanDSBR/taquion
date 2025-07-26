@@ -1,7 +1,7 @@
-// Arquivo: hello_world.taq
+package main
 
-func main() int {
-    let greeting = "Hello, World!";
-    let another = greeting;
+func main() {
+    const greeting = "Hello, World!";
+    const another = greeting;
     return 0;
 }

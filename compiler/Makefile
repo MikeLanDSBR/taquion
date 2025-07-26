@@ -1,7 +1,7 @@
 LLVM_CFLAGS := $(shell llvm-config --cflags)
 LLVM_LDFLAGS := $(shell llvm-config --ldflags --libs --system-libs)
 
-TAQ_NAME   := bool_test
+TAQ_NAME   := start
 TAQ_SRC    := ../examples/$(TAQ_NAME).taq
 BUILD_DIR  := ../build
 

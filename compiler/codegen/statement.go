@@ -10,11 +10,10 @@ import (
 )
 
 func (c *CodeGenerator) genStatement(stmt ast.Statement) {
-	defer c.traceOut(fmt.Sprintf("genStatement (%T)", stmt))
-	c.traceIn(fmt.Sprintf("genStatement (%T)", stmt))
+	// MODIFICADO: Usando a nova função de trace para simplificar.
+	defer c.trace(fmt.Sprintf("genStatement (%T)", stmt))()
 
 	switch node := stmt.(type) {
-	// --- NOVO CASE PARA DECLARAÇÃO DE FUNÇÃO ---
 	case *ast.FunctionDeclaration:
 		// Por enquanto, só lidamos com parâmetros int
 		paramTypes := []llvm.Type{}
@@ -29,6 +28,7 @@ func (c *CodeGenerator) genStatement(stmt ast.Statement) {
 		function := llvm.AddFunction(c.module, node.Name.Value, funcType)
 
 		// Salva a função na tabela de símbolos para que possa ser chamada depois.
+		// O tipo aqui é o tipo da função (assinatura), não o tipo de retorno.
 		c.setSymbol(node.Name.Value, SymbolEntry{Ptr: function, Typ: funcType})
 
 		// Somente gera o corpo se a função tiver um.
@@ -47,9 +47,11 @@ func (c *CodeGenerator) genStatement(stmt ast.Statement) {
 				llvmParam := function.Param(i)
 				llvmParam.SetName(param.Name.Value)
 
-				ptr := c.builder.CreateAlloca(c.context.Int32Type(), param.Name.Value)
+				// O tipo do valor do parâmetro é int32
+				paramType := c.context.Int32Type()
+				ptr := c.builder.CreateAlloca(paramType, param.Name.Value)
 				c.builder.CreateStore(llvmParam, ptr)
-				c.setSymbol(param.Name.Value, SymbolEntry{Ptr: ptr, Typ: c.context.Int32Type()})
+				c.setSymbol(param.Name.Value, SymbolEntry{Ptr: ptr, Typ: paramType})
 			}
 
 			// Gera o código para o corpo da função
@@ -57,13 +59,22 @@ func (c *CodeGenerator) genStatement(stmt ast.Statement) {
 
 			// Garante um terminador se não houver um 'return' explícito
 			if !isBlockTerminated(c.builder.GetInsertBlock()) {
-				// Se for a função main, retorna 0 por padrão. Para outras, pode ser um erro ou undefined behavior.
+				// Se for a função main, retorna 0 por padrão.
+				// Para outras funções, isso significa que não há retorno explícito.
+				// Em uma linguagem mais estrita, isso seria um erro se a função devesse retornar um valor.
 				if node.Name.Value == "main" {
 					c.builder.CreateRet(llvm.ConstInt(c.context.Int32Type(), 0, false))
+				} else {
+					// Para outras funções void (que não retornam valor), um `ret void` seria inserido.
+					// Como estamos assumindo retornos int32, a falta de um return é um comportamento indefinido.
+					// LLVM requer um terminador, então adicionamos um `unreachable` para indicar isso.
+					// c.builder.CreateUnreachable() // Ou um ret padrão se a linguagem permitir.
 				}
 			}
+
 			// Restaura o builder para onde estava antes desta função.
-			if !prevBlock.IsNil() {
+			// Verifica se prevBlock é válido e não é o mesmo que o bloco atual
+			if !prevBlock.IsNil() && prevBlock.C != c.builder.GetInsertBlock().C {
 				c.builder.SetInsertPointAtEnd(prevBlock)
 			}
 		}
@@ -74,6 +85,7 @@ func (c *CodeGenerator) genStatement(stmt ast.Statement) {
 		typ := val.Type()
 		ptr := c.builder.CreateAlloca(typ, node.Name.Value)
 		c.builder.CreateStore(val, ptr)
+		// O tipo na tabela de símbolos é o tipo do valor que a variável armazena.
 		c.setSymbol(node.Name.Value, SymbolEntry{Ptr: ptr, Typ: typ})
 
 	case *ast.AssignmentStatement:
@@ -97,7 +109,7 @@ func (c *CodeGenerator) genStatement(stmt ast.Statement) {
 	case *ast.BlockStatement:
 		c.pushScope()
 		defer c.popScope()
-		c.logTrace("Gerando declaração de bloco (novo escopo)")
+		c.logTrace("Gerando declaração de bloco")
 		for _, s := range node.Statements {
 			c.genStatement(s)
 		}

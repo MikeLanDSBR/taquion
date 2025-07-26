@@ -1,9 +1,8 @@
-// Arquivo: add.taq
+package main
 
-func main() int {
-    let x = 24;
-    let y = 7;
+func main() {
+    const x = 24;
+    const y = 7;
     
-    // Retorna o resultado da soma de x e y.
     return x + y;
 }

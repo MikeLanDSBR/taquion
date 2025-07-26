@@ -1,8 +1,5 @@
-// Arquivo: main.taq
+package main
 
-// 'main' é a função principal que o sistema operacional irá chamar.
-// Ela não recebe nenhum argumento () e retorna um número inteiro (int).
-func main() int {
-    // O programa termina e retorna o número 200 para o sistema.
+func main() {
     return 200
 }

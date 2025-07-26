@@ -12,15 +12,13 @@ import (
 )
 
 func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
-	defer c.traceOut(fmt.Sprintf("genExpression (%T)", expr))
-	c.traceIn(fmt.Sprintf("genExpression (%T)", expr))
+	// MODIFICADO: Usando a nova função de trace para simplificar.
+	defer c.trace(fmt.Sprintf("genExpression (%T)", expr))()
 
 	switch node := expr.(type) {
-	// --- NOVO CASE PARA CHAMADA DE FUNÇÃO ---
 	case *ast.CallExpression:
 		c.logTrace(fmt.Sprintf("Gerando chamada para a função '%s'", node.Function.String()))
 
-		// Procura a função na tabela de símbolos.
 		calleeEntry, ok := c.getSymbol(node.Function.String())
 		if !ok {
 			panic(fmt.Sprintf("função não definida: %s", node.Function.String()))
@@ -28,13 +26,11 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 		callee := calleeEntry.Ptr
 		calleeType := calleeEntry.Typ
 
-		// Gera o código para cada argumento da chamada.
 		args := []llvm.Value{}
 		for _, arg := range node.Arguments {
 			args = append(args, c.genExpression(arg))
 		}
 
-		// Cria a instrução 'call'.
 		return c.builder.CreateCall(calleeType, callee, args, "calltmp")
 
 	case *ast.IntegerLiteral:
@@ -52,6 +48,7 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 		if !ok {
 			panic(fmt.Sprintf("variável não definida: %s", node.Value))
 		}
+		// O tipo do ponteiro é o tipo do valor que ele aponta.
 		return c.builder.CreateLoad(entry.Typ, entry.Ptr, node.Value)
 
 	case *ast.InfixExpression:
@@ -92,8 +89,8 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 }
 
 func (c *CodeGenerator) genIfExpression(ie *ast.IfExpression) llvm.Value {
-	defer c.traceOut("genIfExpression")
-	c.traceIn("genIfExpression")
+	// MODIFICADO: Usando a nova função de trace para simplificar.
+	defer c.trace("genIfExpression")()
 
 	cond := c.genExpression(ie.Condition)
 	condVal := c.builder.CreateICmp(llvm.IntNE, cond, llvm.ConstInt(cond.Type(), 0, false), "ifcond")
@@ -124,5 +121,6 @@ func (c *CodeGenerator) genIfExpression(ie *ast.IfExpression) llvm.Value {
 
 	// --- Bloco 'merge' ---
 	c.builder.SetInsertPointAtEnd(mergeBlock)
+	// Uma expressão 'if' em Taquion não retorna um valor, então retornamos um valor nulo.
 	return llvm.Value{}
 }

@@ -1,4 +1,6 @@
-func main() int {
-    let x = 10;
+package main
+
+func main() {
+    const x = 10;
     return x;
 }

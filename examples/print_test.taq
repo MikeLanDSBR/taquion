@@ -1,11 +1,11 @@
-// Arquivo: print_test.taq
+package main
 
-func main() int {
-    let valor = 100;
-    let mensagem = "O resultado é: ";
+func main() {
+    const valor = 100;
+    const mensagem = "O resultado é: ";
 
-    print(mensagem); // Imprime a string
-    print(valor);    // Imprime o número
+    print(mensagem);
+    print(valor);
 
     return 0;
 }

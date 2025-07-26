@@ -46,6 +46,10 @@ const (
 	IF       = "IF"
 	ELSE     = "ELSE"
 	INT_TYPE = "INT_TYPE" // Pode ser removido futuramente com a inferência de tipos
+
+	// --- NOVOS TOKENS ---
+	TRUE  = "TRUE"
+	FALSE = "FALSE"
 )
 
 type Token struct {
@@ -55,7 +59,6 @@ type Token struct {
 
 // Mapa de palavras-chave fixas
 var keywords = map[string]TokenType{
-	// --- NOVA PALAVRA-CHAVE ---
 	"package": PACKAGE,
 	"func":    FUNCTION,
 	"const":   CONST,
@@ -63,6 +66,8 @@ var keywords = map[string]TokenType{
 	"if":      IF,
 	"else":    ELSE,
 	"int":     INT_TYPE,
+	"true":    TRUE,
+	"false":   FALSE,
 }
 
 // Logger global e mutex para evitar concorrência

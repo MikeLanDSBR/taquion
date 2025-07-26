@@ -6,7 +6,19 @@ import (
 	"taquion/compiler/token"
 )
 
-// --- EXPRESSÕES (EXPRESSIONS) ---
+// --- NOVO NÓ DE EXPRESSÃO ---
+// BooleanLiteral representa os valores 'true' ou 'false'.
+type BooleanLiteral struct {
+	Token token.Token
+	Value bool
+}
+
+func (bl *BooleanLiteral) expressionNode()      {}
+func (bl *BooleanLiteral) TokenLiteral() string { return bl.Token.Literal }
+func (bl *BooleanLiteral) String() string       { return bl.Token.Literal }
+
+// (O restante do seu arquivo de expressões permanece o mesmo)
+// Identifier, IntegerLiteral, etc.
 
 // Identifier representa um nome de variável ou função.
 type Identifier struct {
@@ -48,8 +60,6 @@ type PrefixExpression struct {
 func (pe *PrefixExpression) expressionNode()      {}
 func (pe *PrefixExpression) TokenLiteral() string { return pe.Token.Literal }
 func (pe *PrefixExpression) String() string {
-	initLogger()
-	logger.Printf("Gerando string para PrefixExpression: %s", pe.Operator)
 	var out bytes.Buffer
 	out.WriteString("(")
 	out.WriteString(pe.Operator)
@@ -69,8 +79,6 @@ type InfixExpression struct {
 func (ie *InfixExpression) expressionNode()      {}
 func (ie *InfixExpression) TokenLiteral() string { return ie.Token.Literal }
 func (ie *InfixExpression) String() string {
-	initLogger()
-	logger.Printf("Gerando string para InfixExpression: %s", ie.Operator)
 	var out bytes.Buffer
 	out.WriteString("(")
 	out.WriteString(ie.Left.String())
@@ -91,8 +99,6 @@ type IfExpression struct {
 func (ie *IfExpression) expressionNode()      {}
 func (ie *IfExpression) TokenLiteral() string { return ie.Token.Literal }
 func (ie *IfExpression) String() string {
-	initLogger()
-	logger.Println("Gerando string para IfExpression")
 	var out bytes.Buffer
 	out.WriteString("if")
 	out.WriteString(ie.Condition.String())
@@ -115,8 +121,6 @@ type CallExpression struct {
 func (ce *CallExpression) expressionNode()      {}
 func (ce *CallExpression) TokenLiteral() string { return ce.Token.Literal }
 func (ce *CallExpression) String() string {
-	initLogger()
-	logger.Printf("Gerando string para CallExpression: %s", ce.Function.String())
 	var out bytes.Buffer
 	args := []string{}
 	for _, a := range ce.Arguments {

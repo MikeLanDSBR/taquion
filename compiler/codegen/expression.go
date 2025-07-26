@@ -14,6 +14,16 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 	defer c.trace(fmt.Sprintf("genExpression (%T)", expr))()
 
 	switch node := expr.(type) {
+	// --- NOVO CASE PARA BOOLEANS ---
+	case *ast.BooleanLiteral:
+		c.logTrace(fmt.Sprintf("Gerando literal booleano: %s", node.TokenLiteral()))
+		if node.Value {
+			// LLVM representa 'true' como um inteiro de 1 bit com valor 1.
+			return llvm.ConstInt(c.context.Int1Type(), 1, false)
+		}
+		// LLVM representa 'false' como um inteiro de 1 bit com valor 0.
+		return llvm.ConstInt(c.context.Int1Type(), 0, false)
+
 	case *ast.CallExpression:
 		c.logTrace(fmt.Sprintf("Gerando chamada para a função '%s'", node.Function.String()))
 
@@ -80,17 +90,13 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 		case token.SLASH:
 			return c.builder.CreateSDiv(left, right, "divtmp")
 		case token.GT:
-			cmp := c.builder.CreateICmp(llvm.IntSGT, left, right, "gttmp")
-			return c.builder.CreateZExt(cmp, c.context.Int32Type(), "booltmp")
+			return c.builder.CreateICmp(llvm.IntSGT, left, right, "gttmp")
 		case token.LT:
-			cmp := c.builder.CreateICmp(llvm.IntSLT, left, right, "lttmp")
-			return c.builder.CreateZExt(cmp, c.context.Int32Type(), "booltmp")
+			return c.builder.CreateICmp(llvm.IntSLT, left, right, "lttmp")
 		case token.EQ:
-			cmp := c.builder.CreateICmp(llvm.IntEQ, left, right, "eqtmp")
-			return c.builder.CreateZExt(cmp, c.context.Int32Type(), "booltmp")
+			return c.builder.CreateICmp(llvm.IntEQ, left, right, "eqtmp")
 		case token.NOT_EQ:
-			cmp := c.builder.CreateICmp(llvm.IntNE, left, right, "neqtmp")
-			return c.builder.CreateZExt(cmp, c.context.Int32Type(), "booltmp")
+			return c.builder.CreateICmp(llvm.IntNE, left, right, "neqtmp")
 		default:
 			panic(fmt.Sprintf("operador infix não suportado: %s", node.Operator))
 		}
@@ -107,7 +113,8 @@ func (c *CodeGenerator) genIfExpression(ie *ast.IfExpression) llvm.Value {
 	defer c.trace("genIfExpression")()
 
 	cond := c.genExpression(ie.Condition)
-	condVal := c.builder.CreateICmp(llvm.IntNE, cond, llvm.ConstInt(cond.Type(), 0, false), "ifcond")
+	// Condição agora é um i1, não precisa comparar com zero.
+	// condVal := c.builder.CreateICmp(llvm.IntNE, cond, llvm.ConstInt(cond.Type(), 0, false), "ifcond")
 
 	function := c.builder.GetInsertBlock().Parent()
 
@@ -115,7 +122,7 @@ func (c *CodeGenerator) genIfExpression(ie *ast.IfExpression) llvm.Value {
 	elseBlock := c.context.AddBasicBlock(function, "else")
 	mergeBlock := c.context.AddBasicBlock(function, "merge")
 
-	c.builder.CreateCondBr(condVal, thenBlock, elseBlock)
+	c.builder.CreateCondBr(cond, thenBlock, elseBlock)
 
 	c.builder.SetInsertPointAtEnd(thenBlock)
 	c.genStatement(ie.Consequence)

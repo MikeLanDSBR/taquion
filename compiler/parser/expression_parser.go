@@ -1,4 +1,3 @@
-// parser/expression_parser.go
 package parser
 
 import (
@@ -8,19 +7,18 @@ import (
 	"taquion/compiler/token"
 )
 
-// --- Constantes e mapa de precedência ---
+// (O mapa de precedências e outras funções permanecem os mesmos)
 const (
 	_ int = iota
 	LOWEST
-	EQUALS      // ==
-	LESSGREATER // > ou <
-	SUM         // +
-	PRODUCT     // *
-	PREFIX      // -X ou !X
-	CALL        // myFunction(X)
+	EQUALS
+	LESSGREATER
+	SUM
+	PRODUCT
+	PREFIX
+	CALL
 )
 
-// --- MODIFICAÇÃO: Adicione o token LPAREN ao mapa de precedências ---
 var precedences = map[token.TokenType]int{
 	token.EQ:       EQUALS,
 	token.NOT_EQ:   EQUALS,
@@ -30,23 +28,25 @@ var precedences = map[token.TokenType]int{
 	token.MINUS:    SUM,
 	token.SLASH:    PRODUCT,
 	token.ASTERISK: PRODUCT,
-	token.LPAREN:   CALL, // Adicionado para chamadas de função
+	token.LPAREN:   CALL,
 }
 
-// --- Funções de Registro ---
-
+// --- FUNÇÃO MODIFICADA ---
 func (p *Parser) registerPrefixFns() {
 	p.registerPrefix(token.IDENT, p.parseIdentifier)
 	p.registerPrefix(token.INT, p.parseIntegerLiteral)
+	p.registerPrefix(token.STRING, p.parseStringLiteral)
 	p.registerPrefix(token.BANG, p.parsePrefixExpression)
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression)
 	p.registerPrefix(token.IF, p.parseIfExpression)
-
+	// --- NOVOS REGISTROS ---
+	p.registerPrefix(token.TRUE, p.parseBooleanLiteral)
+	p.registerPrefix(token.FALSE, p.parseBooleanLiteral)
 }
 
+// (registerInfixFns e o resto das funções permanecem os mesmos)
 func (p *Parser) registerInfixFns() {
-	// A linha para parseAssignmentExpression foi removida daqui
 	p.registerInfix(token.PLUS, p.parseInfixExpression)
 	p.registerInfix(token.MINUS, p.parseInfixExpression)
 	p.registerInfix(token.SLASH, p.parseInfixExpression)
@@ -55,46 +55,18 @@ func (p *Parser) registerInfixFns() {
 	p.registerInfix(token.NOT_EQ, p.parseInfixExpression)
 	p.registerInfix(token.LT, p.parseInfixExpression)
 	p.registerInfix(token.GT, p.parseInfixExpression)
-	p.registerPrefix(token.STRING, p.parseStringLiteral)
 	p.registerInfix(token.LPAREN, p.parseCallExpression)
 }
 
-// --- NOVA FUNÇÃO DE PARSING INFIX ---
-func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
-	callExpr := &ast.CallExpression{Token: p.curToken, Function: function}
-	callExpr.Arguments = p.parseExpressionList(token.RPAREN)
-	return callExpr
+// --- NOVA FUNÇÃO DE PARSING ---
+func (p *Parser) parseBooleanLiteral() ast.Expression {
+	return &ast.BooleanLiteral{
+		Token: p.curToken,
+		Value: p.curTokenIs(token.TRUE),
+	}
 }
 
-// --- NOVA FUNÇÃO AUXILIAR ---
-// parseExpressionList é uma função genérica para analisar listas de expressões separadas por vírgula.
-func (p *Parser) parseExpressionList(end token.TokenType) []ast.Expression {
-	list := []ast.Expression{}
-
-	// Se a lista estiver vazia (ex: call()).
-	if p.peekTokenIs(end) {
-		p.nextToken()
-		return list
-	}
-
-	p.nextToken()
-	list = append(list, p.parseExpression(LOWEST))
-
-	for p.peekTokenIs(token.COMMA) {
-		p.nextToken()
-		p.nextToken()
-		list = append(list, p.parseExpression(LOWEST))
-	}
-
-	if !p.expectPeek(end) {
-		return nil
-	}
-
-	return list
-}
-
-// A função parseAssignmentExpression foi removida deste arquivo.
-// O resto das funções de parsing de expressão permanecem as mesmas.
+// (O resto das suas funções de parsing de expressão, como parseIdentifier, etc., permanecem as mesmas)
 func (p *Parser) parseExpression(precedence int) ast.Expression {
 	defer p.traceOut(fmt.Sprintf("parseExpression (precedência: %d)", precedence))
 	p.traceIn(fmt.Sprintf("parseExpression (precedência: %d)", precedence))
@@ -181,4 +153,29 @@ func (p *Parser) parseIfExpression() ast.Expression {
 		expression.Alternative = p.parseBlockStatement()
 	}
 	return expression
+}
+
+func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
+	callExpr := &ast.CallExpression{Token: p.curToken, Function: function}
+	callExpr.Arguments = p.parseExpressionList(token.RPAREN)
+	return callExpr
+}
+
+func (p *Parser) parseExpressionList(end token.TokenType) []ast.Expression {
+	list := []ast.Expression{}
+	if p.peekTokenIs(end) {
+		p.nextToken()
+		return list
+	}
+	p.nextToken()
+	list = append(list, p.parseExpression(LOWEST))
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken()
+		p.nextToken()
+		list = append(list, p.parseExpression(LOWEST))
+	}
+	if !p.expectPeek(end) {
+		return nil
+	}
+	return list
 }

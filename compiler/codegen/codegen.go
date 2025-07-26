@@ -51,6 +51,10 @@ type CodeGenerator struct {
 	symbolTable               []map[string]SymbolEntry
 	indentationLevel          int
 	currentFunctionReturnType llvm.Type
+
+	// --- CAMPOS ADICIONADOS ---
+	printfFunc     llvm.Value // Armazena a função 'printf'
+	printfFuncType llvm.Type  // Armazena o TIPO da função 'printf'
 }
 
 func NewCodeGenerator() *CodeGenerator {
@@ -65,6 +69,17 @@ func NewCodeGenerator() *CodeGenerator {
 		indentationLevel: 0,
 	}
 
+	// --- LÓGICA MODIFICADA ---
+	// Declara a função externa 'printf' e armazena tanto a função quanto seu tipo.
+	printfType := llvm.FunctionType(
+		cg.context.Int32Type(),
+		[]llvm.Type{llvm.PointerType(cg.context.Int8Type(), 0)},
+		true, // Variádica
+	)
+	cg.printfFuncType = printfType // Armazena o tipo para uso seguro posterior
+	cg.printfFunc = llvm.AddFunction(cg.module, "printf", printfType)
+	// --- FIM DA LÓGICA MODIFICADA ---
+
 	logger.Println("Nova instância de CodeGenerator criada.")
 	return cg
 }
@@ -73,7 +88,6 @@ func (c *CodeGenerator) Close() {
 	CloseLogger()
 }
 
-// --- FUNÇÃO MODIFICADA ---
 func (c *CodeGenerator) Generate(program *ast.Program) llvm.Module {
 	defer c.trace("Generate")()
 
@@ -81,15 +95,12 @@ func (c *CodeGenerator) Generate(program *ast.Program) llvm.Module {
 		c.genStatement(stmt)
 	}
 
-	// CORREÇÃO: Garante que um programa sempre tenha uma função 'main'.
-	// Se nenhuma foi declarada no código-fonte, cria uma padrão que retorna 0.
 	mainFunc := c.module.NamedFunction("main")
 	if mainFunc.IsNil() {
 		c.logTrace("Nenhuma função 'main' encontrada. Gerando uma padrão.")
 		mainFuncType := llvm.FunctionType(c.context.Int32Type(), []llvm.Type{}, false)
 		mainFunc = llvm.AddFunction(c.module, "main", mainFuncType)
 		entryBlock := c.context.AddBasicBlock(mainFunc, "entry")
-		// Usamos um builder temporário para não interferir no estado do builder principal.
 		tempBuilder := c.context.NewBuilder()
 		defer tempBuilder.Dispose()
 		tempBuilder.SetInsertPointAtEnd(entryBlock)

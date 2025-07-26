@@ -2,7 +2,7 @@ package main
 
 func main() {
     const valor = 100;
-    const mensagem = "O resultado é: ";
+    const mensagem = "O resultado e: ";
 
     print(mensagem);
     print(valor);

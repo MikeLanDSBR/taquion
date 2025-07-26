@@ -21,17 +21,18 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 		}
 		return llvm.ConstInt(c.context.Int1Type(), 0, false)
 
-	// --- FUNÇÃO MODIFICADA ---
 	case *ast.CallExpression:
 		c.logTrace(fmt.Sprintf("Gerando chamada para a função '%s'", node.Function.String()))
+
+		if node.Function.String() == "print" {
+			return c.genPrintCall(node)
+		}
 
 		calleeEntry, ok := c.getSymbol(node.Function.String())
 		if !ok {
 			panic(fmt.Sprintf("função não definida: %s", node.Function.String()))
 		}
 		callee := calleeEntry.Ptr
-		// CORREÇÃO: Usar o tipo que já foi salvo na tabela de símbolos.
-		// A chamada a callee.Type().ElementType() estava causando o travamento.
 		funcType := calleeEntry.Typ
 
 		args := []llvm.Value{}
@@ -39,23 +40,16 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 
 		for i, arg := range node.Arguments {
 			argVal := c.genExpression(arg)
-
-			// Verifica se o tipo do argumento corresponde ao esperado pela função.
 			if i < len(expectedParamTypes) {
 				expectedType := expectedParamTypes[i]
 				actualType := argVal.Type()
-
-				// Se os tipos forem inteiros de tamanhos diferentes, promove o argumento.
 				if actualType != expectedType && actualType.TypeKind() == llvm.IntegerTypeKind && expectedType.TypeKind() == llvm.IntegerTypeKind {
 					c.logTrace(fmt.Sprintf("Convertendo argumento %d de %s para %s", i, actualType.String(), expectedType.String()))
-					// Usa SExt para estender o valor, preservando o sinal (ex: -1_i8 para -1_i32).
 					argVal = c.builder.CreateSExt(argVal, expectedType, fmt.Sprintf("argcast%d", i))
 				}
 			}
 			args = append(args, argVal)
 		}
-
-		// A função CreateCall precisa do tipo da função.
 		return c.builder.CreateCall(funcType, callee, args, "calltmp")
 
 	case *ast.IntegerLiteral:
@@ -68,16 +62,12 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 		var intType llvm.Type
 		if val >= math.MinInt8 && val <= math.MaxInt8 {
 			intType = c.context.Int8Type()
-			c.logTrace(fmt.Sprintf("Valor %d cabe em um int8. Usando i8.", val))
 		} else if val >= math.MinInt16 && val <= math.MaxInt16 {
 			intType = c.context.Int16Type()
-			c.logTrace(fmt.Sprintf("Valor %d cabe em um int16. Usando i16.", val))
 		} else if val >= math.MinInt32 && val <= math.MaxInt32 {
 			intType = c.context.Int32Type()
-			c.logTrace(fmt.Sprintf("Valor %d cabe em um int32. Usando i32.", val))
 		} else {
 			intType = c.context.Int64Type()
-			c.logTrace(fmt.Sprintf("Valor %d é grande. Usando i64.", val))
 		}
 		return llvm.ConstInt(intType, uint64(val), false)
 
@@ -124,6 +114,36 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 	default:
 		panic(fmt.Sprintf("Expressão não suportada: %T\n", node))
 	}
+}
+
+func (c *CodeGenerator) genPrintCall(call *ast.CallExpression) llvm.Value {
+	defer c.trace("genPrintCall")()
+
+	arg := c.genExpression(call.Arguments[0])
+	argType := arg.Type()
+
+	var format llvm.Value
+	finalArg := arg
+
+	if argType.TypeKind() == llvm.IntegerTypeKind {
+		c.logTrace("Argumento do print é um inteiro. Usando formato '%d\\n'.")
+		format = c.builder.CreateGlobalStringPtr("%d\n", "fmt_int")
+
+		if argType.IntTypeWidth() < 32 {
+			c.logTrace(fmt.Sprintf("Promovendo argumento inteiro de i%d para i32 para a chamada printf", argType.IntTypeWidth()))
+			finalArg = c.builder.CreateSExt(arg, c.context.Int32Type(), "printf_arg_promo")
+		}
+
+	} else if argType.TypeKind() == llvm.PointerTypeKind {
+		c.logTrace("Argumento do print é uma string. Usando formato '%s\\n'.")
+		format = c.builder.CreateGlobalStringPtr("%s\n", "fmt_str")
+	} else {
+		panic(fmt.Sprintf("tipo não suportado para a função print: %s", argType.String()))
+	}
+
+	// --- CORREÇÃO FINAL ---
+	// A chamada para CreateCall agora usa `c.printfFuncType` diretamente.
+	return c.builder.CreateCall(c.printfFuncType, c.printfFunc, []llvm.Value{format, finalArg}, "printf_call")
 }
 
 func (c *CodeGenerator) genIfExpression(ie *ast.IfExpression) llvm.Value {

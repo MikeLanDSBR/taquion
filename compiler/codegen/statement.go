@@ -22,20 +22,23 @@ func (c *CodeGenerator) genStatement(stmt ast.Statement) {
 		c.builder.CreateStore(val, ptr)
 		c.setSymbol(node.Name.Value, SymbolEntry{Ptr: ptr, Typ: typ})
 
-	// --- FUNÇÃO MODIFICADA ---
 	case *ast.FunctionDeclaration:
-		// Garante que o rastreador do tipo de retorno seja limpo ao sair.
 		defer func() { c.currentFunctionReturnType = llvm.Type{} }()
 
 		var retType llvm.Type
 		inferredRetType := c.inferFunctionReturnType(node.Body)
-		if !inferredRetType.IsNil() {
+
+		// --- CORREÇÃO PRINCIPAL ---
+		// Força a função 'main' a sempre retornar i32, conforme a convenção do sistema operacional.
+		if node.Name.Value == "main" {
+			retType = c.context.Int32Type()
+			c.logTrace("Função 'main' detectada. Forçando tipo de retorno para i32.")
+		} else if !inferredRetType.IsNil() {
 			retType = inferredRetType
 		} else {
-			retType = c.context.Int32Type()
+			retType = c.context.Int32Type() // Padrão para outras funções
 		}
 
-		// Armazena o tipo de retorno esperado para uso posterior (ex: no 'return').
 		c.currentFunctionReturnType = retType
 
 		paramTypes := []llvm.Type{}
@@ -95,18 +98,16 @@ func (c *CodeGenerator) genStatement(stmt ast.Statement) {
 		}
 		c.builder.CreateStore(val, entry.Ptr)
 
-	// --- FUNÇÃO MODIFICADA ---
 	case *ast.ReturnStatement:
 		c.logTrace("Gerando declaração 'return'")
 		val := c.genExpression(node.ReturnValue)
 		valType := val.Type()
 
-		// Obtém o tipo de retorno esperado diretamente do nosso novo campo.
 		expectedRetType := c.currentFunctionReturnType
 
 		if !expectedRetType.IsNil() && valType.TypeKind() == llvm.IntegerTypeKind && valType != expectedRetType {
 			c.logTrace(fmt.Sprintf("Convertendo tipo de retorno de %s para %s", valType.String(), expectedRetType.String()))
-			val = c.builder.CreateSExt(val, expectedRetType, "retcast")
+			val = c.builder.CreateZExt(val, expectedRetType, "retcast")
 		}
 
 		c.builder.CreateRet(val)
@@ -120,6 +121,10 @@ func (c *CodeGenerator) genStatement(stmt ast.Statement) {
 		defer c.popScope()
 		c.logTrace("Gerando declaração de bloco")
 		for _, s := range node.Statements {
+			if isBlockTerminated(c.builder.GetInsertBlock()) {
+				c.logTrace("Bloco já terminado, pulando o resto das declarações.")
+				break
+			}
 			c.genStatement(s)
 		}
 
@@ -136,7 +141,7 @@ func (c *CodeGenerator) inferFunctionReturnType(body *ast.BlockStatement) llvm.T
 	for i := len(body.Statements) - 1; i >= 0; i-- {
 		if retStmt, ok := body.Statements[i].(*ast.ReturnStatement); ok {
 			switch retValNode := retStmt.ReturnValue.(type) {
-			case *ast.IntegerLiteral, *ast.StringLiteral:
+			case *ast.IntegerLiteral, *ast.StringLiteral, *ast.BooleanLiteral:
 				val := c.genExpression(retValNode)
 				return val.Type()
 			default:

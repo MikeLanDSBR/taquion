@@ -14,7 +14,7 @@ EXPECTED = {
     "start.taq":              200,  # estrutura mínima, ponto de partida
     "const.taq":              10,   # constante simples
     "add.taq":                31,   # operação aritmética básica
-    "bool_test.taq":          0,    # teste de booleanos
+    "bool_test.taq":          1,    # teste de booleanos
     "if_statement.taq":       10,   # controle de fluxo básico
     "print_test.taq":         0,    # saída padrão (side-effect)
     "functions_test.taq":     15,   # chamada de função

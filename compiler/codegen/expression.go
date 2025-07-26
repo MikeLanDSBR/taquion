@@ -14,16 +14,14 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 	defer c.trace(fmt.Sprintf("genExpression (%T)", expr))()
 
 	switch node := expr.(type) {
-	// --- NOVO CASE PARA BOOLEANS ---
 	case *ast.BooleanLiteral:
 		c.logTrace(fmt.Sprintf("Gerando literal booleano: %s", node.TokenLiteral()))
 		if node.Value {
-			// LLVM representa 'true' como um inteiro de 1 bit com valor 1.
 			return llvm.ConstInt(c.context.Int1Type(), 1, false)
 		}
-		// LLVM representa 'false' como um inteiro de 1 bit com valor 0.
 		return llvm.ConstInt(c.context.Int1Type(), 0, false)
 
+	// --- FUNÇÃO MODIFICADA ---
 	case *ast.CallExpression:
 		c.logTrace(fmt.Sprintf("Gerando chamada para a função '%s'", node.Function.String()))
 
@@ -32,14 +30,33 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 			panic(fmt.Sprintf("função não definida: %s", node.Function.String()))
 		}
 		callee := calleeEntry.Ptr
-		calleeType := calleeEntry.Typ
+		// CORREÇÃO: Usar o tipo que já foi salvo na tabela de símbolos.
+		// A chamada a callee.Type().ElementType() estava causando o travamento.
+		funcType := calleeEntry.Typ
 
 		args := []llvm.Value{}
-		for _, arg := range node.Arguments {
-			args = append(args, c.genExpression(arg))
+		expectedParamTypes := funcType.ParamTypes()
+
+		for i, arg := range node.Arguments {
+			argVal := c.genExpression(arg)
+
+			// Verifica se o tipo do argumento corresponde ao esperado pela função.
+			if i < len(expectedParamTypes) {
+				expectedType := expectedParamTypes[i]
+				actualType := argVal.Type()
+
+				// Se os tipos forem inteiros de tamanhos diferentes, promove o argumento.
+				if actualType != expectedType && actualType.TypeKind() == llvm.IntegerTypeKind && expectedType.TypeKind() == llvm.IntegerTypeKind {
+					c.logTrace(fmt.Sprintf("Convertendo argumento %d de %s para %s", i, actualType.String(), expectedType.String()))
+					// Usa SExt para estender o valor, preservando o sinal (ex: -1_i8 para -1_i32).
+					argVal = c.builder.CreateSExt(argVal, expectedType, fmt.Sprintf("argcast%d", i))
+				}
+			}
+			args = append(args, argVal)
 		}
 
-		return c.builder.CreateCall(calleeType, callee, args, "calltmp")
+		// A função CreateCall precisa do tipo da função.
+		return c.builder.CreateCall(funcType, callee, args, "calltmp")
 
 	case *ast.IntegerLiteral:
 		c.logTrace(fmt.Sprintf("Gerando literal inteiro: %s", node.TokenLiteral()))
@@ -113,9 +130,6 @@ func (c *CodeGenerator) genIfExpression(ie *ast.IfExpression) llvm.Value {
 	defer c.trace("genIfExpression")()
 
 	cond := c.genExpression(ie.Condition)
-	// Condição agora é um i1, não precisa comparar com zero.
-	// condVal := c.builder.CreateICmp(llvm.IntNE, cond, llvm.ConstInt(cond.Type(), 0, false), "ifcond")
-
 	function := c.builder.GetInsertBlock().Parent()
 
 	thenBlock := c.context.AddBasicBlock(function, "then")

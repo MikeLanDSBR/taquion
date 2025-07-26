@@ -11,7 +11,6 @@ import (
 	"tinygo.org/x/go-llvm"
 )
 
-// (initLogger, CloseLogger, SymbolEntry permanecem os mesmos)
 var (
 	logger   *log.Logger
 	logFile  *os.File
@@ -45,14 +44,12 @@ type SymbolEntry struct {
 	Typ llvm.Type
 }
 
-// --- STRUCT MODIFICADA ---
 type CodeGenerator struct {
-	module           llvm.Module
-	builder          llvm.Builder
-	context          llvm.Context
-	symbolTable      []map[string]SymbolEntry
-	indentationLevel int
-	// NOVO CAMPO: Armazena o TIPO de retorno da função atual. É mais seguro que armazenar a função inteira.
+	module                    llvm.Module
+	builder                   llvm.Builder
+	context                   llvm.Context
+	symbolTable               []map[string]SymbolEntry
+	indentationLevel          int
 	currentFunctionReturnType llvm.Type
 }
 
@@ -72,16 +69,31 @@ func NewCodeGenerator() *CodeGenerator {
 	return cg
 }
 
-// (O restante do arquivo permanece o mesmo)
 func (c *CodeGenerator) Close() {
 	CloseLogger()
 }
 
+// --- FUNÇÃO MODIFICADA ---
 func (c *CodeGenerator) Generate(program *ast.Program) llvm.Module {
 	defer c.trace("Generate")()
 
 	for _, stmt := range program.Statements {
 		c.genStatement(stmt)
+	}
+
+	// CORREÇÃO: Garante que um programa sempre tenha uma função 'main'.
+	// Se nenhuma foi declarada no código-fonte, cria uma padrão que retorna 0.
+	mainFunc := c.module.NamedFunction("main")
+	if mainFunc.IsNil() {
+		c.logTrace("Nenhuma função 'main' encontrada. Gerando uma padrão.")
+		mainFuncType := llvm.FunctionType(c.context.Int32Type(), []llvm.Type{}, false)
+		mainFunc = llvm.AddFunction(c.module, "main", mainFuncType)
+		entryBlock := c.context.AddBasicBlock(mainFunc, "entry")
+		// Usamos um builder temporário para não interferir no estado do builder principal.
+		tempBuilder := c.context.NewBuilder()
+		defer tempBuilder.Dispose()
+		tempBuilder.SetInsertPointAtEnd(entryBlock)
+		tempBuilder.CreateRet(llvm.ConstInt(c.context.Int32Type(), 0, false))
 	}
 
 	return c.module

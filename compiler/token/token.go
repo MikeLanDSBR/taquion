@@ -32,24 +32,27 @@ const (
 	COMMA     = ","
 	SEMICOLON = ";"
 
-	LPAREN = "("
-	RPAREN = ")"
-	LBRACE = "{"
-	RBRACE = "}"
+	LPAREN   = "("
+	RPAREN   = ")"
+	LBRACE   = "{"
+	RBRACE   = "}"
+	LBRACKET = "[" // Novo
+	RBRACKET = "]" // Novo
 
-	// --- NOVO TOKEN ---
-	PACKAGE = "PACKAGE"
-
+	PACKAGE  = "PACKAGE"
 	FUNCTION = "FUNCTION"
 	CONST    = "CONST"
 	RETURN   = "RETURN"
 	IF       = "IF"
 	ELSE     = "ELSE"
-	INT_TYPE = "INT_TYPE" // Pode ser removido futuramente com a inferência de tipos
+	TRUE     = "TRUE"
+	FALSE    = "FALSE"
 
 	// --- NOVOS TOKENS ---
-	TRUE  = "TRUE"
-	FALSE = "FALSE"
+	LET      = "LET"
+	WHILE    = "WHILE"
+	BREAK    = "BREAK"
+	CONTINUE = "CONTINUE"
 )
 
 type Token struct {
@@ -57,27 +60,27 @@ type Token struct {
 	Literal string
 }
 
-// Mapa de palavras-chave fixas
 var keywords = map[string]TokenType{
-	"package": PACKAGE,
-	"func":    FUNCTION,
-	"const":   CONST,
-	"return":  RETURN,
-	"if":      IF,
-	"else":    ELSE,
-	"int":     INT_TYPE,
-	"true":    TRUE,
-	"false":   FALSE,
+	"package":  PACKAGE,
+	"func":     FUNCTION,
+	"const":    CONST,
+	"return":   RETURN,
+	"if":       IF,
+	"else":     ELSE,
+	"true":     TRUE,
+	"false":    FALSE,
+	"let":      LET,      // Novo
+	"while":    WHILE,    // Novo
+	"break":    BREAK,    // Novo
+	"continue": CONTINUE, // Novo
 }
 
-// Logger global e mutex para evitar concorrência
 var (
 	logger   *log.Logger
 	logFile  *os.File
 	initOnce sync.Once
 )
 
-// Inicializa o logger uma vez só, de forma thread-safe
 func initLogger() {
 	initOnce.Do(func() {
 		var err error
@@ -90,7 +93,6 @@ func initLogger() {
 	})
 }
 
-// CloseLogger deve ser chamada no `main` para fechar o arquivo quando o programa terminar.
 func CloseLogger() {
 	if logFile != nil {
 		logger.Println("=== Encerrando sessão de log do token ===")
@@ -98,14 +100,12 @@ func CloseLogger() {
 	}
 }
 
-// NewToken cria um token com log em arquivo
 func NewToken(t TokenType, lit string) Token {
 	initLogger()
 	logger.Printf("Criando token - Tipo: %-10s | Literal: %q\n", t, lit)
 	return Token{Type: t, Literal: lit}
 }
 
-// LookupIdent verifica se um identificador é uma palavra-chave
 func LookupIdent(ident string) TokenType {
 	initLogger()
 	if tok, ok := keywords[ident]; ok {

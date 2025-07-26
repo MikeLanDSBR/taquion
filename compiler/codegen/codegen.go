@@ -34,7 +34,6 @@ func initLogger() {
 
 func CloseLogger() {
 	if logFile != nil {
-		logger.Println("=== Encerrando sessão de log do codegen ===")
 		logFile.Close()
 	}
 }
@@ -52,14 +51,21 @@ type CodeGenerator struct {
 	indentationLevel          int
 	currentFunctionReturnType llvm.Type
 
-	// --- CAMPOS ADICIONADOS ---
-	printfFunc     llvm.Value // Armazena a função 'printf'
-	printfFuncType llvm.Type  // Armazena o TIPO da função 'printf'
+	// Funções C embutidas
+	printfFunc     llvm.Value
+	printfFuncType llvm.Type
+	mallocFunc     llvm.Value
+	strlenFunc     llvm.Value
+	strcpyFunc     llvm.Value
+	strcatFunc     llvm.Value
+
+	// Contexto para loops (para break/continue)
+	loopCondBlock llvm.BasicBlock
+	loopEndBlock  llvm.BasicBlock
 }
 
 func NewCodeGenerator() *CodeGenerator {
 	initLogger()
-
 	ctx := llvm.NewContext()
 	cg := &CodeGenerator{
 		context:          ctx,
@@ -68,20 +74,27 @@ func NewCodeGenerator() *CodeGenerator {
 		symbolTable:      []map[string]SymbolEntry{make(map[string]SymbolEntry)},
 		indentationLevel: 0,
 	}
-
-	// --- LÓGICA MODIFICADA ---
-	// Declara a função externa 'printf' e armazena tanto a função quanto seu tipo.
-	printfType := llvm.FunctionType(
-		cg.context.Int32Type(),
-		[]llvm.Type{llvm.PointerType(cg.context.Int8Type(), 0)},
-		true, // Variádica
-	)
-	cg.printfFuncType = printfType // Armazena o tipo para uso seguro posterior
-	cg.printfFunc = llvm.AddFunction(cg.module, "printf", printfType)
-	// --- FIM DA LÓGICA MODIFICADA ---
-
+	cg.declareCFunctions()
 	logger.Println("Nova instância de CodeGenerator criada.")
 	return cg
+}
+
+func (c *CodeGenerator) declareCFunctions() {
+	i8PtrType := llvm.PointerType(c.context.Int8Type(), 0)
+	sizeType := c.context.Int64Type()
+
+	c.printfFuncType = llvm.FunctionType(c.context.Int32Type(), []llvm.Type{i8PtrType}, true)
+	c.printfFunc = llvm.AddFunction(c.module, "printf", c.printfFuncType)
+
+	mallocType := llvm.FunctionType(i8PtrType, []llvm.Type{sizeType}, false)
+	c.mallocFunc = llvm.AddFunction(c.module, "malloc", mallocType)
+
+	strlenType := llvm.FunctionType(sizeType, []llvm.Type{i8PtrType}, false)
+	c.strlenFunc = llvm.AddFunction(c.module, "strlen", strlenType)
+
+	strcpyType := llvm.FunctionType(i8PtrType, []llvm.Type{i8PtrType, i8PtrType}, false)
+	c.strcpyFunc = llvm.AddFunction(c.module, "strcpy", strcpyType)
+	c.strcatFunc = llvm.AddFunction(c.module, "strcat", strcpyType)
 }
 
 func (c *CodeGenerator) Close() {
@@ -90,14 +103,11 @@ func (c *CodeGenerator) Close() {
 
 func (c *CodeGenerator) Generate(program *ast.Program) llvm.Module {
 	defer c.trace("Generate")()
-
 	for _, stmt := range program.Statements {
 		c.genStatement(stmt)
 	}
-
 	mainFunc := c.module.NamedFunction("main")
 	if mainFunc.IsNil() {
-		c.logTrace("Nenhuma função 'main' encontrada. Gerando uma padrão.")
 		mainFuncType := llvm.FunctionType(c.context.Int32Type(), []llvm.Type{}, false)
 		mainFunc = llvm.AddFunction(c.module, "main", mainFuncType)
 		entryBlock := c.context.AddBasicBlock(mainFunc, "entry")
@@ -106,20 +116,14 @@ func (c *CodeGenerator) Generate(program *ast.Program) llvm.Module {
 		tempBuilder.SetInsertPointAtEnd(entryBlock)
 		tempBuilder.CreateRet(llvm.ConstInt(c.context.Int32Type(), 0, false))
 	}
-
 	return c.module
 }
 
 func isBlockTerminated(block llvm.BasicBlock) bool {
-	if block.IsNil() {
+	if block.IsNil() || block.LastInstruction().IsNil() {
 		return false
 	}
-	lastInst := block.LastInstruction()
-	if lastInst.IsNil() {
-		return false
-	}
-	opcode := lastInst.InstructionOpcode()
-	switch opcode {
+	switch block.LastInstruction().InstructionOpcode() {
 	case llvm.Ret, llvm.Br, llvm.Switch, llvm.IndirectBr, llvm.Invoke, llvm.Unreachable, llvm.Resume:
 		return true
 	default:

@@ -1,15 +1,25 @@
-#!/usr/bin/env python3
+import os
 import sys
 import time
 from pathlib import Path
+from rich.console import Console
+from rich.table import Table
 
+# Adiciona o diretório atual ao path para encontrar os módulos locais
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE))
 
-from utils import check_deps, find_examples
+# Importa as funções dos outros módulos da ferramenta
 from builder import build_taquionc
 from runner import run_example
+from reporter import report_failure, report_summary
+from utils import find_examples
 
+# Inicializa o console do Rich para uma saída mais bonita
+console = Console()
+
+# Dicionário de testes esperados e seus códigos de saída.
+# A ordem dos itens neste dicionário define a sequência de execução dos testes.
 EXPECTED = {
     # --- Testes existentes ---
     "start.taq":              200,  # estrutura mínima, ponto de partida
@@ -34,99 +44,116 @@ EXPECTED = {
     "array_basic.taq":        0,    # Suporte básico para arrays (declaração e acesso)
 }
 
+def clear_screen():
+    """Limpa a tela do console, compatível com Windows, Mac e Linux."""
+    os.system('cls' if os.name == 'nt' else 'clear')
+
 def pause():
-    input("\n⏎ Pressione Enter para voltar ao menu... ")
+    """Pausa a execução e espera o usuário pressionar Enter."""
+    console.input("\n[yellow]Pressione Enter para voltar ao menu...[/yellow]")
 
-def menu():
-    print("\n🎯 === Taquion Tester === 🎯")
-    print("1 - Iniciar testes de todos exemplos")
-    print("2 - Compilar TaquionC")
-    print("3 - Ver últimos logs de compilação")
-    print("4 - Listar arquivos .taq encontrados")
-    print("0 - Sair")
-    return input("\n👉 Escolha uma opção: ")
+def show_menu():
+    """Exibe o menu principal de opções."""
+    console.rule("\n[bold blue]🎯 === Taquion Tester === 🎯[/bold blue]")
+    table = Table(show_header=False, box=None)
+    table.add_row("[cyan]1[/cyan]", "Iniciar testes de todos exemplos")
+    table.add_row("[cyan]2[/cyan]", "Compilar TaquionC")
+    table.add_row("[cyan]3[/cyan]", "Ver últimos logs de compilação")
+    table.add_row("[cyan]4[/cyan]", "Listar arquivos .taq encontrados")
+    table.add_row("[cyan]0[/cyan]", "Sair")
+    console.print(table)
+    return console.input("[bold]👉 Escolha uma opção: [/bold]")
 
-def format_result(name, status, rc, expected, took):
-    name_str     = f"[{name}]".ljust(35)
-    status_str   = status.ljust(6)
-    rc_str       = str(rc).rjust(5)
-    expected_str = str(expected).rjust(6) if expected is not None else " None "
-    time_str     = f"{took:.2f}s".rjust(7)
-    return f"{name_str}{status_str} (⏎ {rc_str} | 🎯 {expected_str}) ⏱️ {time_str}"
+def run_all_tests_menu(compiler_path, examples_path, build_path):
+    """
+    Executa todos os testes definidos no dicionário EXPECTED na ordem especificada.
+    """
+    console.rule("[bold blue]Executando todos os testes do Taquion Compiler[/bold blue]")
+    start_time = time.time()
+
+    # A compilação de cada teste é tratada pela função run_example.
+    # Removida a compilação global para alinhar com o comportamento anterior.
+    
+    results = {"passed": 0, "failed": 0, "total": len(EXPECTED)}
+
+    for test_file, expected_code in EXPECTED.items():
+        console.print(f"\n[cyan]Executando teste:[/cyan] {test_file} (esperado: {expected_code})")
+
+        source_path = Path(examples_path) / test_file
+        if not source_path.exists():
+            console.print(f"❌ [bold red]FALHOU![/bold red] Arquivo de teste não encontrado: {source_path}")
+            results["failed"] += 1
+            continue
+
+        return_code, output, _ = run_example(source_path)
+        
+        passed = (return_code == expected_code)
+
+        if passed:
+            console.print(f"✅ [bold green]PASSOU![/bold green] (código de saída: {return_code})")
+            results["passed"] += 1
+        else:
+            console.print(f"❌ [bold red]FALHOU![/bold red]")
+            results["failed"] += 1
+            report_failure(test_file, expected_code, return_code, output, "N/A (saída combinada)")
+
+    end_time = time.time()
+    report_summary(results, end_time - start_time)
 
 def main():
+    """Função principal que gerencia o menu e o fluxo do programa."""
     last_build_output = None
-    PROJECT_ROOT = HERE.parent.parent
-    EX_DIR = PROJECT_ROOT / "examples"
+    compiler_path = HERE.parent.parent
+    examples_path = compiler_path / "examples"
+    build_path = compiler_path / "build"
+
+    os.makedirs(build_path, exist_ok=True)
 
     while True:
-        escolha = menu().strip()
+        clear_screen()  # Limpa a tela antes de mostrar o menu
+        choice = show_menu().strip()
 
-        if escolha == '1':
-            print("🔍 Verificando dependências...")
-            missing = check_deps()
-            if missing:
-                print("🚫 Dependências faltando:", ", ".join(missing))
-                pause()
-                continue
-            print("✅ Dependências OK.")
-
-            examples = find_examples(EX_DIR)
-            if not examples:
-                print("⚠️  Nenhum .taq encontrado em examples/")
-                pause()
-                continue
-
-            total = 0.0
-            for ex in examples:
-                name = ex.name
-                expected = EXPECTED.get(name, None)
-                rc, output, took = run_example(ex)
-
-                if expected is None:
-                    passed = rc != 0
-                else:
-                    passed = (rc == expected)
-
-                status = "✅ OK" if passed else "❌ FAIL"
-                print(format_result(name, status, rc, expected, took))
-
-            print(f"\n⏱️ Tempo total: {total:.2f}s")
+        if choice == '1':
+            run_all_tests_menu(str(compiler_path), str(examples_path), str(build_path))
             pause()
 
-        elif escolha == '2':
-            print("⚙️  Compilando TaquionC...")
+        elif choice == '2':
+            console.print("\n[bold]⚙️  Compilando TaquionC...[/bold]")
             ok, out = build_taquionc()
             last_build_output = out
             if ok:
-                print("✅ Compilação concluída com sucesso.")
+                console.print("✅ [green]Compilação concluída com sucesso.[/green]")
             else:
-                print("❌ Falha na compilação:\n")
-                print(out.strip())
+                console.print("❌ [red]Falha na compilação:[/red]\n")
+                console.print(out.strip())
             pause()
 
-        elif escolha == '3':
-            print("📄 Últimos logs de compilação:\n")
+        elif choice == '3':
+            console.print("\n[bold]📄 Últimos logs de compilação:[/bold]\n")
             if last_build_output:
-                print(last_build_output.strip())
+                console.print(last_build_output.strip())
             else:
-                print("⚠️  Nenhuma compilação feita ainda.")
+                console.print("[yellow]⚠️  Nenhuma compilação feita ainda nesta sessão.[/yellow]")
             pause()
 
-        elif escolha == '4':
-            print("📂 Arquivos .taq disponíveis:\n")
-            examples = find_examples(EX_DIR)
-            for idx, ex in enumerate(examples, 1):
-                print(f"  {idx:02d}. {ex.name}")
+        elif choice == '4':
+            console.print("\n[bold]📂 Arquivos .taq disponíveis:[/bold]\n")
+            try:
+                examples = find_examples(examples_path)
+                for idx, ex in enumerate(examples, 1):
+                    console.print(f"  [cyan]{idx:02d}.[/cyan] {ex.name}")
+            except FileNotFoundError:
+                console.print(f"[red]Diretório de exemplos não encontrado em: {examples_path}[/red]")
             pause()
 
-        elif escolha == '0':
-            print("👋 Saindo...")
+        elif choice == '0':
+            clear_screen()
+            console.print("\n[bold]👋 Saindo...[/bold]")
             break
 
         else:
-            print("❗ Opção inválida.")
-            pause()
+            console.print("\n[bold red]❗ Opção inválida.[/bold red]")
+            time.sleep(1)
 
 if __name__ == "__main__":
     main()

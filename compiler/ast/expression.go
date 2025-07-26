@@ -1,3 +1,4 @@
+// Arquivo: ast/expression.go
 package ast
 
 import (
@@ -6,53 +7,29 @@ import (
 	"taquion/compiler/token"
 )
 
-// --- NOVO NÓ DE EXPRESSÃO ---
-// BooleanLiteral representa os valores 'true' ou 'false'.
-type BooleanLiteral struct {
-	Token token.Token
-	Value bool
-}
+// --- Nós de Expressão ---
 
-func (bl *BooleanLiteral) expressionNode()      {}
-func (bl *BooleanLiteral) TokenLiteral() string { return bl.Token.Literal }
-func (bl *BooleanLiteral) String() string       { return bl.Token.Literal }
-
-// (O restante do seu arquivo de expressões permanece o mesmo)
-// Identifier, IntegerLiteral, etc.
-
-// Identifier representa um nome de variável ou função.
-type Identifier struct {
-	Token token.Token // O token IDENT
-	Value string
-}
-
-func (i *Identifier) expressionNode()      {}
-func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
-func (i *Identifier) String() string       { return i.Value }
-
-// IntegerLiteral representa um número inteiro.
 type IntegerLiteral struct {
 	Token token.Token
 	Value int64
 }
 
-func (il *IntegerLiteral) expressionNode()      {}
-func (il *IntegerLiteral) TokenLiteral() string { return il.Token.Literal }
-func (il *IntegerLiteral) String() string       { return il.Token.Literal }
-
-// StringLiteral representa uma string.
 type StringLiteral struct {
 	Token token.Token
 	Value string
 }
 
-func (sl *StringLiteral) expressionNode()      {}
-func (sl *StringLiteral) TokenLiteral() string { return sl.Token.Literal }
-func (sl *StringLiteral) String() string       { return `"` + sl.Value + `"` }
+type BooleanLiteral struct {
+	Token token.Token
+	Value bool
+}
 
-// PrefixExpression representa uma expressão de prefixo: <operador><expressão>
+func (b *BooleanLiteral) expressionNode()      {}
+func (b *BooleanLiteral) TokenLiteral() string { return b.Token.Literal }
+func (b *BooleanLiteral) String() string       { return b.Token.Literal }
+
 type PrefixExpression struct {
-	Token    token.Token // O token do operador, ex: !
+	Token    token.Token // O token do prefixo, ex: !
 	Operator string
 	Right    Expression
 }
@@ -68,7 +45,6 @@ func (pe *PrefixExpression) String() string {
 	return out.String()
 }
 
-// InfixExpression representa uma expressão de infixo: <expressão> <operador> <expressão>
 type InfixExpression struct {
 	Token    token.Token // O token do operador, ex: +
 	Left     Expression
@@ -76,19 +52,24 @@ type InfixExpression struct {
 	Right    Expression
 }
 
-func (ie *InfixExpression) expressionNode()      {}
-func (ie *InfixExpression) TokenLiteral() string { return ie.Token.Literal }
-func (ie *InfixExpression) String() string {
+type AssignmentExpression struct {
+	Token token.Token // o token '='
+	Left  Expression
+	Value Expression
+}
+
+func (ae *AssignmentExpression) expressionNode()      {}
+func (ae *AssignmentExpression) TokenLiteral() string { return ae.Token.Literal }
+func (ae *AssignmentExpression) String() string {
 	var out bytes.Buffer
 	out.WriteString("(")
-	out.WriteString(ie.Left.String())
-	out.WriteString(" " + ie.Operator + " ")
-	out.WriteString(ie.Right.String())
+	out.WriteString(ae.Left.String())
+	out.WriteString(" = ")
+	out.WriteString(ae.Value.String())
 	out.WriteString(")")
 	return out.String()
 }
 
-// IfExpression representa uma expressão if/else.
 type IfExpression struct {
 	Token       token.Token // O token 'if'
 	Condition   Expression
@@ -111,10 +92,31 @@ func (ie *IfExpression) String() string {
 	return out.String()
 }
 
-// CallExpression representa uma chamada de função: <função>(<argumentos>)
+type FunctionLiteral struct {
+	Token      token.Token // O token 'func'
+	Parameters []*Identifier
+	Body       *BlockStatement
+}
+
+func (fl *FunctionLiteral) expressionNode()      {}
+func (fl *FunctionLiteral) TokenLiteral() string { return fl.Token.Literal }
+func (fl *FunctionLiteral) String() string {
+	var out bytes.Buffer
+	params := []string{}
+	for _, p := range fl.Parameters {
+		params = append(params, p.String())
+	}
+	out.WriteString(fl.TokenLiteral())
+	out.WriteString("(")
+	out.WriteString(strings.Join(params, ", "))
+	out.WriteString(") ")
+	out.WriteString(fl.Body.String())
+	return out.String()
+}
+
 type CallExpression struct {
 	Token     token.Token // O token '('
-	Function  Expression  // Identifier ou FunctionLiteral
+	Function  Expression
 	Arguments []Expression
 }
 
@@ -130,5 +132,42 @@ func (ce *CallExpression) String() string {
 	out.WriteString("(")
 	out.WriteString(strings.Join(args, ", "))
 	out.WriteString(")")
+	return out.String()
+}
+
+type ArrayLiteral struct {
+	Token    token.Token // o token '['
+	Elements []Expression
+}
+
+func (al *ArrayLiteral) expressionNode()      {}
+func (al *ArrayLiteral) TokenLiteral() string { return al.Token.Literal }
+func (al *ArrayLiteral) String() string {
+	var out bytes.Buffer
+	elements := []string{}
+	for _, el := range al.Elements {
+		elements = append(elements, el.String())
+	}
+	out.WriteString("[")
+	out.WriteString(strings.Join(elements, ", "))
+	out.WriteString("]")
+	return out.String()
+}
+
+type IndexExpression struct {
+	Token token.Token // o token '['
+	Left  Expression
+	Index Expression
+}
+
+func (ie *IndexExpression) expressionNode()      {}
+func (ie *IndexExpression) TokenLiteral() string { return ie.Token.Literal }
+func (ie *IndexExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString("(")
+	out.WriteString(ie.Left.String())
+	out.WriteString("[")
+	out.WriteString(ie.Index.String())
+	out.WriteString("])")
 	return out.String()
 }

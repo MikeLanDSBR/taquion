@@ -1,3 +1,4 @@
+// Arquivo: ast/ast.go
 package ast
 
 import (
@@ -5,16 +6,15 @@ import (
 	"log"
 	"os"
 	"sync"
+	"taquion/compiler/token"
 )
 
-// --- SISTEMA DE LOG ---
 var (
 	logger   *log.Logger
 	logFile  *os.File
 	initOnce sync.Once
 )
 
-// initLogger inicializa o logger global de forma segura.
 func initLogger() {
 	initOnce.Do(func() {
 		if err := os.MkdirAll("log", 0755); err != nil {
@@ -30,7 +30,6 @@ func initLogger() {
 	})
 }
 
-// CloseLogger deve ser chamada no main para fechar o arquivo de log.
 func CloseLogger() {
 	if logFile != nil {
 		logger.Println("=== Encerrando sessão de log da AST ===")
@@ -38,29 +37,21 @@ func CloseLogger() {
 	}
 }
 
-// --- INTERFACES BASE ---
-
-// Node é a interface base para todos os nós da AST.
 type Node interface {
 	TokenLiteral() string
 	String() string
 }
 
-// Statement marca nós que são declarações (não produzem valor).
 type Statement interface {
 	Node
 	statementNode()
 }
 
-// Expression marca nós que são expressões (produzem valor).
 type Expression interface {
 	Node
 	expressionNode()
 }
 
-// --- NÓ RAIZ ---
-
-// Program é o nó raiz da AST: uma sequência de declarações.
 type Program struct {
 	Statements []Statement
 }
@@ -79,5 +70,34 @@ func (p *Program) String() string {
 	for _, s := range p.Statements {
 		out.WriteString(s.String())
 	}
+	return out.String()
+}
+
+type Identifier struct {
+	Token token.Token
+	Value string
+}
+
+func (i *Identifier) expressionNode()      {}
+func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
+func (i *Identifier) String() string       { return i.Value }
+
+func (il *IntegerLiteral) expressionNode()      {}
+func (il *IntegerLiteral) TokenLiteral() string { return il.Token.Literal }
+func (il *IntegerLiteral) String() string       { return il.Token.Literal }
+
+func (sl *StringLiteral) expressionNode()      {}
+func (sl *StringLiteral) TokenLiteral() string { return sl.Token.Literal }
+func (sl *StringLiteral) String() string       { return sl.Token.Literal }
+
+func (ie *InfixExpression) expressionNode()      {}
+func (ie *InfixExpression) TokenLiteral() string { return ie.Token.Literal }
+func (ie *InfixExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString("(")
+	out.WriteString(ie.Left.String())
+	out.WriteString(" " + ie.Operator + " ")
+	out.WriteString(ie.Right.String())
+	out.WriteString(")")
 	return out.String()
 }

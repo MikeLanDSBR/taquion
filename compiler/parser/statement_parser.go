@@ -5,134 +5,49 @@ import (
 	"taquion/compiler/token"
 )
 
-// parseStatement agora decide qual tipo de declaração analisar.
 func (p *Parser) parseStatement() ast.Statement {
-	defer p.traceOut("parseStatement")
-	p.traceIn("parseStatement")
+	logger.Println("    >> parseStatement")
+	defer logger.Println("    << parseStatement")
 
 	switch p.curToken.Type {
-	// CORREÇÃO 1: Adicionada a regra para analisar 'package'.
-	// Isso resolve o erro: "nenhuma função de parsing de prefixo encontrada para PACKAGE"
-	case token.PACKAGE:
-		return p.parsePackageStatement()
 	case token.CONST:
 		return p.parseConstStatement()
+	case token.LET:
+		return p.parseLetStatement()
 	case token.RETURN:
 		return p.parseReturnStatement()
+	case token.PACKAGE:
+		return p.parsePackageStatement()
 	case token.FUNCTION:
 		return p.parseFunctionDeclaration()
+	case token.WHILE:
+		return p.parseWhileStatement()
+	case token.BREAK:
+		return p.parseBreakStatement()
+	case token.CONTINUE:
+		return p.parseContinueStatement()
 	default:
-		if p.curTokenIs(token.IDENT) && p.peekTokenIs(token.ASSIGN) {
-			return p.parseAssignmentStatement()
-		}
 		return p.parseExpressionStatement()
 	}
 }
 
-// --- NOVAS FUNÇÕES DE PARSING ---
-
-// parsePackageStatement analisa a declaração 'package <nome>;'
-func (p *Parser) parsePackageStatement() *ast.PackageStatement {
-	stmt := &ast.PackageStatement{Token: p.curToken}
-
+func (p *Parser) parseLetStatement() *ast.LetStatement {
+	stmt := &ast.LetStatement{Token: p.curToken}
 	if !p.expectPeek(token.IDENT) {
 		return nil
 	}
 	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-
-	// Consome o ponto e vírgula opcional no final da linha.
+	if !p.expectPeek(token.ASSIGN) {
+		return nil
+	}
+	p.nextToken()
+	stmt.Value = p.parseExpression(LOWEST)
 	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}
 	return stmt
 }
 
-// --- FUNÇÕES MODIFICADAS ---
-
-// parseFunctionDeclaration foi corrigida para não esperar um tipo de retorno.
-func (p *Parser) parseFunctionDeclaration() ast.Statement {
-	decl := &ast.FunctionDeclaration{Token: p.curToken}
-
-	if !p.expectPeek(token.IDENT) {
-		return nil
-	}
-	decl.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-
-	if !p.expectPeek(token.LPAREN) {
-		return nil
-	}
-
-	decl.Parameters = p.parseFunctionParameters()
-
-	// CORREÇÃO 2: A lógica que procurava por um tipo de retorno foi removida.
-	// Agora, o parser espera um '{' logo após os parênteses.
-	// Isso resolve o erro: "esperava o próximo token ser {, mas obteve RETURN"
-	if !p.expectPeek(token.LBRACE) {
-		return nil
-	}
-
-	decl.Body = p.parseBlockStatement()
-
-	return decl
-}
-
-// parseBlockStatement foi corrigido para não consumir um token a mais.
-func (p *Parser) parseBlockStatement() *ast.BlockStatement {
-	block := &ast.BlockStatement{Token: p.curToken}
-	block.Statements = []ast.Statement{}
-
-	p.nextToken() // Pula o token '{'
-
-	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
-		stmt := p.parseStatement()
-		if stmt != nil {
-			block.Statements = append(block.Statements, stmt)
-		}
-		p.nextToken() // Avança para o próximo token DENTRO do bloco.
-	}
-
-	// CORREÇÃO 3: O `p.nextToken()` extra no final do loop foi removido.
-	// O loop agora termina corretamente quando encontra '}'.
-	// Isso resolve o erro: "nenhuma função de parsing de prefixo encontrada para }"
-
-	return block
-}
-
-// parseFunctionParameters foi simplificado para a nova sintaxe sem tipos.
-func (p *Parser) parseFunctionParameters() []*ast.Parameter {
-	params := []*ast.Parameter{}
-
-	if p.peekTokenIs(token.RPAREN) {
-		p.nextToken()
-		return params
-	}
-
-	p.nextToken()
-
-	param := &ast.Parameter{
-		Token: p.curToken,
-		Name:  &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal},
-	}
-	params = append(params, param)
-
-	for p.peekTokenIs(token.COMMA) {
-		p.nextToken()
-		p.nextToken()
-		param := &ast.Parameter{
-			Token: p.curToken,
-			Name:  &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal},
-		}
-		params = append(params, param)
-	}
-
-	if !p.expectPeek(token.RPAREN) {
-		return nil
-	}
-
-	return params
-}
-
-// (O restante das suas funções de parsing de statement, como parseConstStatement, etc., permanecem as mesmas)
 func (p *Parser) parseConstStatement() *ast.ConstStatement {
 	stmt := &ast.ConstStatement{Token: p.curToken}
 	if !p.expectPeek(token.IDENT) {
@@ -169,14 +84,83 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	return stmt
 }
 
-func (p *Parser) parseAssignmentStatement() *ast.AssignmentStatement {
-	stmt := &ast.AssignmentStatement{
-		Name: &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal},
+// parseBlockStatement analisa um bloco de código delimitado por chaves '{}'.
+func (p *Parser) parseBlockStatement() *ast.BlockStatement {
+	block := &ast.BlockStatement{Token: p.curToken}
+	block.Statements = []ast.Statement{}
+
+	// Avança o token para o interior do bloco.
+	p.nextToken()
+
+	// Continua analisando statements até encontrar um fecha chaves '}' ou o fim do arquivo.
+	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
+		stmt := p.parseStatement()
+		if stmt != nil {
+			block.Statements = append(block.Statements, stmt)
+		}
+		// Avança para o próximo statement dentro do bloco.
+		p.nextToken()
+	}
+
+	return block
+}
+
+func (p *Parser) parsePackageStatement() *ast.PackageStatement {
+	stmt := &ast.PackageStatement{Token: p.curToken}
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	if p.peekTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+	return stmt
+}
+
+func (p *Parser) parseFunctionDeclaration() *ast.FunctionDeclaration {
+	decl := &ast.FunctionDeclaration{Token: p.curToken}
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+	decl.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	if !p.expectPeek(token.LPAREN) {
+		return nil
+	}
+	decl.Parameters = p.parseFunctionParameters()
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+	decl.Body = p.parseBlockStatement()
+	return decl
+}
+
+func (p *Parser) parseWhileStatement() *ast.WhileStatement {
+	stmt := &ast.WhileStatement{Token: p.curToken}
+	if !p.expectPeek(token.LPAREN) {
+		return nil
 	}
 	p.nextToken()
-	stmt.Token = p.curToken
-	p.nextToken()
-	stmt.Value = p.parseExpression(LOWEST)
+	stmt.Condition = p.parseExpression(LOWEST)
+	if !p.expectPeek(token.RPAREN) {
+		return nil
+	}
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+	stmt.Body = p.parseBlockStatement()
+	return stmt
+}
+
+func (p *Parser) parseBreakStatement() *ast.BreakStatement {
+	stmt := &ast.BreakStatement{Token: p.curToken}
+	if p.peekTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+	return stmt
+}
+
+func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
+	stmt := &ast.ContinueStatement{Token: p.curToken}
 	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}

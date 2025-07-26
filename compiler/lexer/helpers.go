@@ -3,26 +3,17 @@ package lexer
 
 import "taquion/compiler/token"
 
-// --- NOVA FUNÇÃO PARA LER STRINGS ---
-func (l *Lexer) readString() string {
-	// A posição inicial é depois do '"' de abertura
-	position := l.position + 1
-	for {
-		l.readChar()
-		// Continua lendo até encontrar o '"' de fechamento ou o fim do arquivo
-		if l.ch == '"' || l.ch == 0 {
-			break
-		}
-	}
-	// Retorna a fatia da string de entrada que está entre as aspas
-	return l.input[position:l.position]
+func isLetter(ch byte) bool {
+	return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z') || ch == '_'
 }
 
-// --- Funções Auxiliares ---
+func isDigit(ch byte) bool {
+	return '0' <= ch && ch <= '9'
+}
 
 func (l *Lexer) readChar() {
 	if l.readPosition >= len(l.input) {
-		l.ch = 0 // 0 é o código ASCII para "NUL", representa o fim do arquivo (EOF)
+		l.ch = 0
 	} else {
 		l.ch = l.input[l.readPosition]
 	}
@@ -37,22 +28,6 @@ func (l *Lexer) peekChar() byte {
 	return l.input[l.readPosition]
 }
 
-func (l *Lexer) readIdentifier() string {
-	position := l.position
-	for isConstter(l.ch) {
-		l.readChar()
-	}
-	return l.input[position:l.position]
-}
-
-func (l *Lexer) readNumber() string {
-	position := l.position
-	for isDigit(l.ch) {
-		l.readChar()
-	}
-	return l.input[position:l.position]
-}
-
 func (l *Lexer) skipWhitespace() {
 	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
 		l.readChar()
@@ -60,27 +35,20 @@ func (l *Lexer) skipWhitespace() {
 }
 
 func (l *Lexer) skipComment() {
-	for l.ch != '\n' && l.ch != 0 {
-		l.readChar()
+	if l.ch == '/' && l.peekChar() == '/' {
+		// Log para o comentário encontrado
+		l.logger.Println("Comentário '//' encontrado, pulando linha.")
+		for l.ch != '\n' && l.ch != 0 {
+			l.readChar()
+		}
 	}
 }
 
-func isConstter(ch byte) bool {
-	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'
-}
-
-func isDigit(ch byte) bool {
-	return '0' <= ch && ch <= '9'
-}
-
-func newToken(tokenType token.TokenType, ch byte) token.Token {
-	return token.Token{Type: tokenType, Literal: string(ch)}
-}
-
+// logToken escreve as informações do token gerado no arquivo de log.
 func (l *Lexer) logToken(tok token.Token) {
 	// Não logar EOF para não poluir o final do log
 	if tok.Type == token.EOF {
 		return
 	}
-	l.logger.Printf("Token gerado -> Tipo: %-10s | Literal: '%s'\n", tok.Type, tok.Literal)
+	l.logger.Printf("Token gerado -> Tipo: %-10s | Literal: '%s'", tok.Type, tok.Literal)
 }

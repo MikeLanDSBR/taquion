@@ -21,6 +21,30 @@ func (ps *PackageStatement) String() string {
 	return ps.TokenLiteral() + " " + ps.Name.String() + ";"
 }
 
+// --- NOVA STRUCT PARA CONST ---
+// ConstStatement = const <nome> = <valor>;
+type ConstStatement struct {
+	Token token.Token // O token 'const'
+	Name  *Identifier
+	Value Expression
+}
+
+func (cs *ConstStatement) statementNode()       {}
+func (cs *ConstStatement) TokenLiteral() string { return cs.Token.Literal }
+func (cs *ConstStatement) String() string {
+	initLogger()
+	logger.Printf("Gerando string para ConstStatement: %s", cs.Name.Value)
+	var out bytes.Buffer
+	out.WriteString(cs.TokenLiteral() + " ")
+	out.WriteString(cs.Name.String())
+	out.WriteString(" = ")
+	if cs.Value != nil {
+		out.WriteString(cs.Value.String())
+	}
+	out.WriteString(";")
+	return out.String()
+}
+
 // LetStatement = let <nome> = <valor>;
 type LetStatement struct {
 	Token token.Token

@@ -1,9 +1,8 @@
-// Arquivo: codegen/expression.go
-// Função: Geração de código para todos os tipos de expressões (expressions).
 package codegen
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"taquion/compiler/ast"
 	"taquion/compiler/token"
@@ -12,7 +11,6 @@ import (
 )
 
 func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
-	// MODIFICADO: Usando a nova função de trace para simplificar.
 	defer c.trace(fmt.Sprintf("genExpression (%T)", expr))()
 
 	switch node := expr.(type) {
@@ -35,8 +33,26 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 
 	case *ast.IntegerLiteral:
 		c.logTrace(fmt.Sprintf("Gerando literal inteiro: %s", node.TokenLiteral()))
-		val, _ := strconv.ParseInt(node.TokenLiteral(), 10, 64)
-		return llvm.ConstInt(c.context.Int32Type(), uint64(val), false)
+		val, err := strconv.ParseInt(node.TokenLiteral(), 10, 64)
+		if err != nil {
+			panic(fmt.Sprintf("não foi possível converter o literal inteiro: %s", node.TokenLiteral()))
+		}
+
+		var intType llvm.Type
+		if val >= math.MinInt8 && val <= math.MaxInt8 {
+			intType = c.context.Int8Type()
+			c.logTrace(fmt.Sprintf("Valor %d cabe em um int8. Usando i8.", val))
+		} else if val >= math.MinInt16 && val <= math.MaxInt16 {
+			intType = c.context.Int16Type()
+			c.logTrace(fmt.Sprintf("Valor %d cabe em um int16. Usando i16.", val))
+		} else if val >= math.MinInt32 && val <= math.MaxInt32 {
+			intType = c.context.Int32Type()
+			c.logTrace(fmt.Sprintf("Valor %d cabe em um int32. Usando i32.", val))
+		} else {
+			intType = c.context.Int64Type()
+			c.logTrace(fmt.Sprintf("Valor %d é grande. Usando i64.", val))
+		}
+		return llvm.ConstInt(intType, uint64(val), false)
 
 	case *ast.StringLiteral:
 		c.logTrace(fmt.Sprintf("Gerando literal de string: %q", node.Value))
@@ -48,7 +64,6 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 		if !ok {
 			panic(fmt.Sprintf("variável não definida: %s", node.Value))
 		}
-		// O tipo do ponteiro é o tipo do valor que ele aponta.
 		return c.builder.CreateLoad(entry.Typ, entry.Ptr, node.Value)
 
 	case *ast.InfixExpression:
@@ -89,7 +104,6 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 }
 
 func (c *CodeGenerator) genIfExpression(ie *ast.IfExpression) llvm.Value {
-	// MODIFICADO: Usando a nova função de trace para simplificar.
 	defer c.trace("genIfExpression")()
 
 	cond := c.genExpression(ie.Condition)
@@ -103,14 +117,12 @@ func (c *CodeGenerator) genIfExpression(ie *ast.IfExpression) llvm.Value {
 
 	c.builder.CreateCondBr(condVal, thenBlock, elseBlock)
 
-	// --- Bloco 'then' ---
 	c.builder.SetInsertPointAtEnd(thenBlock)
 	c.genStatement(ie.Consequence)
 	if !isBlockTerminated(c.builder.GetInsertBlock()) {
 		c.builder.CreateBr(mergeBlock)
 	}
 
-	// --- Bloco 'else' ---
 	c.builder.SetInsertPointAtEnd(elseBlock)
 	if ie.Alternative != nil {
 		c.genStatement(ie.Alternative)
@@ -119,8 +131,6 @@ func (c *CodeGenerator) genIfExpression(ie *ast.IfExpression) llvm.Value {
 		c.builder.CreateBr(mergeBlock)
 	}
 
-	// --- Bloco 'merge' ---
 	c.builder.SetInsertPointAtEnd(mergeBlock)
-	// Uma expressão 'if' em Taquion não retorna um valor, então retornamos um valor nulo.
 	return llvm.Value{}
 }

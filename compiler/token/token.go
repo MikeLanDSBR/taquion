@@ -41,7 +41,7 @@ const (
 	PACKAGE = "PACKAGE"
 
 	FUNCTION = "FUNCTION"
-	LET      = "LET"
+	CONST    = "CONST"
 	RETURN   = "RETURN"
 	IF       = "IF"
 	ELSE     = "ELSE"
@@ -58,7 +58,7 @@ var keywords = map[string]TokenType{
 	// --- NOVA PALAVRA-CHAVE ---
 	"package": PACKAGE,
 	"func":    FUNCTION,
-	"let":     LET,
+	"const":   CONST,
 	"return":  RETURN,
 	"if":      IF,
 	"else":    ELSE,

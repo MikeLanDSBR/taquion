@@ -15,8 +15,8 @@ func (p *Parser) parseStatement() ast.Statement {
 	// Isso resolve o erro: "nenhuma função de parsing de prefixo encontrada para PACKAGE"
 	case token.PACKAGE:
 		return p.parsePackageStatement()
-	case token.LET:
-		return p.parseLetStatement()
+	case token.CONST:
+		return p.parseConstStatement()
 	case token.RETURN:
 		return p.parseReturnStatement()
 	case token.FUNCTION:
@@ -132,9 +132,9 @@ func (p *Parser) parseFunctionParameters() []*ast.Parameter {
 	return params
 }
 
-// (O restante das suas funções de parsing de statement, como parseLetStatement, etc., permanecem as mesmas)
-func (p *Parser) parseLetStatement() *ast.LetStatement {
-	stmt := &ast.LetStatement{Token: p.curToken}
+// (O restante das suas funções de parsing de statement, como parseConstStatement, etc., permanecem as mesmas)
+func (p *Parser) parseConstStatement() *ast.ConstStatement {
+	stmt := &ast.ConstStatement{Token: p.curToken}
 	if !p.expectPeek(token.IDENT) {
 		return nil
 	}

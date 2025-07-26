@@ -11,15 +11,15 @@ from builder import build_taquionc
 from runner import run_example
 
 EXPECTED = {
-    "start.taq":              200,
-    "add.taq":                31,
-    "advanced_test.taq":      100,
-    "bool_test.taq":          0,
-    "functions_test.taq":     15,
-    "hello_world.taq":        0,
-    "if_statement.taq":       10,
-    "let.taq":                10,
-    "print_test.taq":         0,
+    "start.taq":              200,  # estrutura mínima, ponto de partida
+    "const.taq":              10,   # constante simples
+    "add.taq":                31,   # operação aritmética básica
+    "bool_test.taq":          0,    # teste de booleanos
+    "if_statement.taq":       10,   # controle de fluxo básico
+    "print_test.taq":         0,    # saída padrão (side-effect)
+    "functions_test.taq":     15,   # chamada de função
+    "hello_world.taq":        0,    # strings, atribuições
+    "advanced_test.taq":      100,  # mistura de várias features
 }
 
 def pause():

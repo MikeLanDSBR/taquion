@@ -1,5 +1,3 @@
-// Arquivo: codegen/codegen.go
-// Função: Ponto de entrada e funções principais do gerador de código.
 package codegen
 
 import (
@@ -7,41 +5,34 @@ import (
 	"log"
 	"os"
 	"strings"
-	"sync" // Adicionado para inicialização segura do logger
+	"sync"
 	"taquion/compiler/ast"
 
 	"tinygo.org/x/go-llvm"
 )
 
-// --- LOGGER GLOBAL (PADRÃO RECOMENDADO) ---
+// (initLogger, CloseLogger, SymbolEntry permanecem os mesmos)
 var (
 	logger   *log.Logger
 	logFile  *os.File
 	initOnce sync.Once
 )
 
-// initLogger inicializa o logger global de forma segura usando sync.Once.
-// Isso garante que a inicialização ocorra apenas uma vez, mesmo em ambientes concorrentes.
 func initLogger() {
 	initOnce.Do(func() {
-		// Garante que o diretório de log exista
 		if err := os.MkdirAll("log", 0755); err != nil {
 			log.Fatalf("Erro ao criar diretório de log: %v", err)
 		}
 		var err error
-		// Abre o arquivo de log
 		logFile, err = os.OpenFile("log/codegen.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 		if err != nil {
 			log.Fatalf("Erro ao abrir o arquivo de log codegen.log: %v", err)
 		}
-		// Cria a instância do logger
 		logger = log.New(logFile, "CODEGEN: ", log.LstdFlags)
 		logger.Println("=== Nova sessão de log do codegen iniciada ===")
 	})
 }
 
-// CloseLogger deve ser chamada (geralmente com defer) na função main do seu programa
-// para garantir que o arquivo de log seja fechado corretamente.
 func CloseLogger() {
 	if logFile != nil {
 		logger.Println("=== Encerrando sessão de log do codegen ===")
@@ -49,24 +40,24 @@ func CloseLogger() {
 	}
 }
 
-// SymbolEntry armazena o ponteiro e o tipo de uma variável na tabela de símbolos.
 type SymbolEntry struct {
 	Ptr llvm.Value
 	Typ llvm.Type
 }
 
-// CodeGenerator mantém o estado durante a geração de código.
+// --- STRUCT MODIFICADA ---
 type CodeGenerator struct {
 	module           llvm.Module
 	builder          llvm.Builder
 	context          llvm.Context
-	symbolTable      []map[string]SymbolEntry // Pilha de mapas para gerenciar escopo com tipos.
+	symbolTable      []map[string]SymbolEntry
 	indentationLevel int
+	// NOVO CAMPO: Armazena o TIPO de retorno da função atual. É mais seguro que armazenar a função inteira.
+	currentFunctionReturnType llvm.Type
 }
 
-// NewCodeGenerator cria uma nova instância do gerador de código.
 func NewCodeGenerator() *CodeGenerator {
-	initLogger() // Garante que o logger global esteja inicializado
+	initLogger()
 
 	ctx := llvm.NewContext()
 	cg := &CodeGenerator{
@@ -81,13 +72,11 @@ func NewCodeGenerator() *CodeGenerator {
 	return cg
 }
 
-// Close é um método de conveniência que chama a função CloseLogger do pacote.
-// Isso restaura a compatibilidade com o código que chama `defer generator.Close()`.
+// (O restante do arquivo permanece o mesmo)
 func (c *CodeGenerator) Close() {
 	CloseLogger()
 }
 
-// Generate é o ponto de entrada que traduz a AST para um módulo LLVM.
 func (c *CodeGenerator) Generate(program *ast.Program) llvm.Module {
 	defer c.trace("Generate")()
 
@@ -114,8 +103,6 @@ func isBlockTerminated(block llvm.BasicBlock) bool {
 		return false
 	}
 }
-
-// --- FUNÇÕES DE ESCOPO ---
 
 func (c *CodeGenerator) pushScope() {
 	c.logTrace("=> Entrando em novo escopo")
@@ -144,15 +131,11 @@ func (c *CodeGenerator) getSymbol(name string) (SymbolEntry, bool) {
 	return SymbolEntry{}, false
 }
 
-// --- FUNÇÕES DE LOGGING AUXILIARES ---
-
-// logTrace usa o logger global para registrar mensagens com indentação.
 func (c *CodeGenerator) logTrace(msg string) {
 	indent := strings.Repeat("    ", c.indentationLevel)
 	logger.Printf("%s%s\n", indent, msg)
 }
 
-// trace é uma função auxiliar para rastrear a entrada e saída de funções.
 func (c *CodeGenerator) trace(funcName string) func() {
 	c.logTrace(">> " + funcName)
 	c.indentationLevel++

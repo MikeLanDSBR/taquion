@@ -38,7 +38,14 @@ func (c *CodeGenerator) genStatement(stmt ast.Statement) {
 			retType = c.context.Int32Type() // Padrão
 		}
 		c.currentFunctionReturnType = retType
-		paramTypes := []llvm.Type{}
+
+		// Constrói os tipos dos parâmetros
+		paramTypes := make([]llvm.Type, len(node.Parameters))
+		for i := range node.Parameters {
+			// Por enquanto, todos os parâmetros são assumidos como i32
+			paramTypes[i] = c.context.Int32Type()
+		}
+
 		funcType := llvm.FunctionType(retType, paramTypes, false)
 		function := llvm.AddFunction(c.module, node.Name.Value, funcType)
 		c.setSymbol(node.Name.Value, SymbolEntry{Ptr: function, Typ: funcType})
@@ -46,9 +53,23 @@ func (c *CodeGenerator) genStatement(stmt ast.Statement) {
 		if node.Body != nil {
 			entryBlock := c.context.AddBasicBlock(function, "entry")
 			c.builder.SetInsertPointAtEnd(entryBlock)
-			c.pushScope()
+			c.pushScope() // Entra no novo escopo da função
+
+			// === CORREÇÃO APLICADA AQUI ===
+			// Adicionar os parâmetros da função à tabela de símbolos
+			for i, param := range node.Parameters {
+				paramValue := function.Param(i)
+				paramValue.SetName(param.Value)
+
+				// Alocar espaço na stack para o parâmetro e armazenar o valor
+				alloca := c.builder.CreateAlloca(paramValue.Type(), param.Value)
+				c.builder.CreateStore(paramValue, alloca)
+				c.setSymbol(param.Value, SymbolEntry{Ptr: alloca, Typ: paramValue.Type()})
+			}
+			// ==============================
+
 			c.genStatement(node.Body)
-			c.popScope()
+			c.popScope() // Sai do escopo
 			if !isBlockTerminated(c.builder.GetInsertBlock()) {
 				c.builder.CreateRet(llvm.ConstInt(retType, 0, false))
 			}

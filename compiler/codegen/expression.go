@@ -80,11 +80,34 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 		return val
 
 	case *ast.CallExpression:
+		// === Lógica para funções embutidas ===
 		if node.Function.String() == "print" {
 			return c.genPrintCall(node)
 		}
-		// ... (lógica para outras funções)
-		panic(fmt.Sprintf("função não definida: %s", node.Function.String()))
+
+		// === CORREÇÃO: Lógica para funções definidas pelo usuário ===
+		// 1. Procurar a função na tabela de símbolos
+		symbol, ok := c.getSymbol(node.Function.String())
+		if !ok {
+			panic(fmt.Sprintf("função não definida: %s", node.Function.String()))
+		}
+
+		// 'symbol.Ptr' contém o llvm.Value da função e 'symbol.Typ' contém o llvm.FunctionType
+		function := symbol.Ptr
+		functionType := symbol.Typ
+
+		// 2. Gerar código para os argumentos
+		args := []llvm.Value{}
+		for _, argExpr := range node.Arguments {
+			// Os argumentos são carregados, pois as variáveis 'cinco' e 'dez' são alocações na stack
+			// 'c.genExpression' já faz a carga (CreateLoad)
+			args = append(args, c.genExpression(argExpr))
+		}
+
+		// 3. Fazer a chamada da função
+		// A função CreateCall espera o tipo da função (llvm.FunctionType), não o tipo de retorno.
+		// A correção foi usar 'functionType' que é o tipo da função.
+		return c.builder.CreateCall(functionType, function, args, "calltmp")
 
 	case *ast.IfExpression:
 		return c.genIfExpression(node)
@@ -148,5 +171,5 @@ func (c *CodeGenerator) genIfExpression(ie *ast.IfExpression) llvm.Value {
 	}
 
 	c.builder.SetInsertPointAtEnd(mergeBlock)
-	return llvm.Value{} // If como expressão pode retornar um valor com PHI nodes, mas por enquanto retorna nulo.
+	return llvm.Value{}
 }

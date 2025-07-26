@@ -28,17 +28,15 @@ func (l *Lexer) peekChar() byte {
 	return l.input[l.readPosition]
 }
 
-func (l *Lexer) skipWhitespace() {
-	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
-		l.readChar()
-	}
-}
-
-func (l *Lexer) skipComment() {
-	if l.ch == '/' && l.peekChar() == '/' {
-		// Log para o comentário encontrado
-		l.logger.Println("Comentário '//' encontrado, pulando linha.")
-		for l.ch != '\n' && l.ch != 0 {
+// skipWhitespaceAndComments avança o lexer para pular espaços em branco e comentários em sequência.
+func (l *Lexer) skipWhitespaceAndComments() {
+	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' || (l.ch == '/' && l.peekChar() == '/') {
+		if l.ch == '/' && l.peekChar() == '/' {
+			l.logger.Println("Comentário '//' encontrado, pulando linha.")
+			for l.ch != '\n' && l.ch != 0 {
+				l.readChar()
+			}
+		} else {
 			l.readChar()
 		}
 	}

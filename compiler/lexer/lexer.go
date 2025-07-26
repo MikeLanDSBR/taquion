@@ -43,9 +43,7 @@ func New(input string) *Lexer {
 func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
 
-	l.skipWhitespace()
-	// l.skipComment() // Descomente se você tiver a função skipComment em helpers.go
-	l.skipWhitespace()
+	l.skipWhitespaceAndComments() // Lógica de pular espaços e comentários combinada
 
 	switch l.ch {
 	case '=':

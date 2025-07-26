@@ -54,6 +54,8 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 			return c.builder.CreateMul(left, right, "multmp")
 		case token.SLASH:
 			return c.builder.CreateSDiv(left, right, "divtmp")
+		case token.MODULO: // NOVO: Adicionado para o operador de módulo
+			return c.builder.CreateSRem(left, right, "modtmp") // SRam para signed remainder (resto da divisão)
 		case token.EQ:
 			return c.builder.CreateICmp(llvm.IntEQ, left, right, "eqtmp")
 		case token.NOT_EQ:
@@ -80,33 +82,25 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 		return val
 
 	case *ast.CallExpression:
-		// === Lógica para funções embutidas ===
+		// Lógica para funções embutidas
 		if node.Function.String() == "print" {
 			return c.genPrintCall(node)
 		}
 
-		// === CORREÇÃO: Lógica para funções definidas pelo usuário ===
-		// 1. Procurar a função na tabela de símbolos
+		// Lógica para funções definidas pelo usuário
 		symbol, ok := c.getSymbol(node.Function.String())
 		if !ok {
 			panic(fmt.Sprintf("função não definida: %s", node.Function.String()))
 		}
 
-		// 'symbol.Ptr' contém o llvm.Value da função e 'symbol.Typ' contém o llvm.FunctionType
 		function := symbol.Ptr
 		functionType := symbol.Typ
 
-		// 2. Gerar código para os argumentos
 		args := []llvm.Value{}
 		for _, argExpr := range node.Arguments {
-			// Os argumentos são carregados, pois as variáveis 'cinco' e 'dez' são alocações na stack
-			// 'c.genExpression' já faz a carga (CreateLoad)
 			args = append(args, c.genExpression(argExpr))
 		}
 
-		// 3. Fazer a chamada da função
-		// A função CreateCall espera o tipo da função (llvm.FunctionType), não o tipo de retorno.
-		// A correção foi usar 'functionType' que é o tipo da função.
 		return c.builder.CreateCall(functionType, function, args, "calltmp")
 
 	case *ast.IfExpression:

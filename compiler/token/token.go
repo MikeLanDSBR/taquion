@@ -22,6 +22,7 @@ const (
 	BANG     = "!"
 	ASTERISK = "*"
 	SLASH    = "/"
+	MODULO   = "%" // NOVO: Operador de módulo
 
 	LT = "<"
 	GT = ">"
@@ -36,8 +37,8 @@ const (
 	RPAREN   = ")"
 	LBRACE   = "{"
 	RBRACE   = "}"
-	LBRACKET = "[" // Novo
-	RBRACKET = "]" // Novo
+	LBRACKET = "["
+	RBRACKET = "]"
 
 	PACKAGE  = "PACKAGE"
 	FUNCTION = "FUNCTION"
@@ -48,7 +49,6 @@ const (
 	TRUE     = "TRUE"
 	FALSE    = "FALSE"
 
-	// --- NOVOS TOKENS ---
 	LET      = "LET"
 	WHILE    = "WHILE"
 	BREAK    = "BREAK"
@@ -69,10 +69,10 @@ var keywords = map[string]TokenType{
 	"else":     ELSE,
 	"true":     TRUE,
 	"false":    FALSE,
-	"let":      LET,      // Novo
-	"while":    WHILE,    // Novo
-	"break":    BREAK,    // Novo
-	"continue": CONTINUE, // Novo
+	"let":      LET,
+	"while":    WHILE,
+	"break":    BREAK,
+	"continue": CONTINUE,
 }
 
 var (

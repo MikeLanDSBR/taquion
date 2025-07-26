@@ -80,6 +80,8 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.ASTERISK, l.ch)
 	case '/':
 		tok = newToken(token.SLASH, l.ch)
+	case '%': // NOVO: Adicionado para o operador de módulo
+		tok = newToken(token.MODULO, l.ch)
 	case '<':
 		tok = newToken(token.LT, l.ch)
 	case '>':
@@ -103,12 +105,12 @@ func (l *Lexer) NextToken() token.Token {
 			tok.Literal = l.readIdentifier()
 			tok.Type = token.LookupIdent(tok.Literal)
 			l.logToken(tok)
-			return tok // Retorna aqui porque readIdentifier já avançou
+			return tok
 		} else if isDigit(l.ch) {
 			tok.Type = token.INT
 			tok.Literal = l.readNumber()
 			l.logToken(tok)
-			return tok // Retorna aqui porque readNumber já avançou
+			return tok
 		} else {
 			tok = newToken(token.ILLEGAL, l.ch)
 		}

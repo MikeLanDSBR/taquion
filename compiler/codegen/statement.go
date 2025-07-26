@@ -55,7 +55,6 @@ func (c *CodeGenerator) genStatement(stmt ast.Statement) {
 			c.builder.SetInsertPointAtEnd(entryBlock)
 			c.pushScope() // Entra no novo escopo da função
 
-			// === CORREÇÃO APLICADA AQUI ===
 			// Adicionar os parâmetros da função à tabela de símbolos
 			for i, param := range node.Parameters {
 				paramValue := function.Param(i)
@@ -66,7 +65,6 @@ func (c *CodeGenerator) genStatement(stmt ast.Statement) {
 				c.builder.CreateStore(paramValue, alloca)
 				c.setSymbol(param.Value, SymbolEntry{Ptr: alloca, Typ: paramValue.Type()})
 			}
-			// ==============================
 
 			c.genStatement(node.Body)
 			c.popScope() // Sai do escopo

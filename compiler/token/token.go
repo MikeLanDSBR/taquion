@@ -37,12 +37,15 @@ const (
 	LBRACE = "{"
 	RBRACE = "}"
 
+	// --- NOVO TOKEN ---
+	PACKAGE = "PACKAGE"
+
 	FUNCTION = "FUNCTION"
 	LET      = "LET"
 	RETURN   = "RETURN"
 	IF       = "IF"
 	ELSE     = "ELSE"
-	INT_TYPE = "INT_TYPE"
+	INT_TYPE = "INT_TYPE" // Pode ser removido futuramente com a inferência de tipos
 )
 
 type Token struct {
@@ -50,24 +53,26 @@ type Token struct {
 	Literal string
 }
 
-// Mapa keywords fixas
+// Mapa de palavras-chave fixas
 var keywords = map[string]TokenType{
-	"func":   FUNCTION,
-	"let":    LET,
-	"return": RETURN,
-	"if":     IF,
-	"else":   ELSE,
-	"int":    INT_TYPE,
+	// --- NOVA PALAVRA-CHAVE ---
+	"package": PACKAGE,
+	"func":    FUNCTION,
+	"let":     LET,
+	"return":  RETURN,
+	"if":      IF,
+	"else":    ELSE,
+	"int":     INT_TYPE,
 }
 
-// Logger global e mutex pra evitar rixa de concorrência
+// Logger global e mutex para evitar concorrência
 var (
 	logger   *log.Logger
 	logFile  *os.File
 	initOnce sync.Once
 )
 
-// Inicializa o logger uma vez só, thread-safe
+// Inicializa o logger uma vez só, de forma thread-safe
 func initLogger() {
 	initOnce.Do(func() {
 		var err error
@@ -80,7 +85,7 @@ func initLogger() {
 	})
 }
 
-// Chame essa função no `main` para fechar o arquivo quando o programa terminar.
+// CloseLogger deve ser chamada no `main` para fechar o arquivo quando o programa terminar.
 func CloseLogger() {
 	if logFile != nil {
 		logger.Println("=== Encerrando sessão de log do token ===")
@@ -88,14 +93,14 @@ func CloseLogger() {
 	}
 }
 
-// Cria token com log em arquivo
+// NewToken cria um token com log em arquivo
 func NewToken(t TokenType, lit string) Token {
 	initLogger()
 	logger.Printf("Criando token - Tipo: %-10s | Literal: %q\n", t, lit)
 	return Token{Type: t, Literal: lit}
 }
 
-// LookupIdent com log em arquivo
+// LookupIdent verifica se um identificador é uma palavra-chave
 func LookupIdent(ident string) TokenType {
 	initLogger()
 	if tok, ok := keywords[ident]; ok {

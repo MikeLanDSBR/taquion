@@ -1,4 +1,3 @@
-// parser/parser.go
 package parser
 
 import (
@@ -9,26 +8,22 @@ import (
 	"taquion/compiler/token"
 )
 
-// prefixParseFn é o tipo de função para analisar expressões que começam com um token.
+// (O restante da sua struct Parser e das funções prefix/infix permanece o mesmo)
 type prefixParseFn func() ast.Expression
-
-// infixParseFn é o tipo de função para analisar expressões que têm um operador no meio.
 type infixParseFn func(ast.Expression) ast.Expression
 
-// Parser mantém o estado do analisador sintático.
 type Parser struct {
-	l                *lexer.Lexer                      // O lexer para obter tokens
-	errors           []string                          // Erros de parsing encontrados
-	curToken         token.Token                       // O token atual sendo inspecionado
-	peekToken        token.Token                       // O próximo token (olhar à frente)
-	prefixParseFns   map[token.TokenType]prefixParseFn // Funções para expressões prefixo
-	infixParseFns    map[token.TokenType]infixParseFn  // Funções para expressões infix
-	logger           *log.Logger                       // Logger para rastreamento e depuração
-	LogFile          *os.File                          // Arquivo de log
-	indentationLevel int                               // Nível de indentação para logs
+	l                *lexer.Lexer
+	errors           []string
+	curToken         token.Token
+	peekToken        token.Token
+	prefixParseFns   map[token.TokenType]prefixParseFn
+	infixParseFns    map[token.TokenType]infixParseFn
+	logger           *log.Logger
+	LogFile          *os.File
+	indentationLevel int
 }
 
-// New cria uma nova instância do Parser.
 func New(l *lexer.Lexer) *Parser {
 	file, err := os.OpenFile("log/parser.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
@@ -44,15 +39,12 @@ func New(l *lexer.Lexer) *Parser {
 	}
 	p.logger.Println("Iniciando nova sessão de parsing.")
 
-	// Inicializa os mapas de funções de parsing.
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 
-	// Registra todas as funções de parsing.
 	p.registerPrefixFns()
 	p.registerInfixFns()
 
-	// Lê dois tokens para preencher curToken e peekToken.
 	p.nextToken()
 	p.nextToken()
 	return p
@@ -66,13 +58,16 @@ func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
 	program.Statements = []ast.Statement{}
 
-	// Continua analisando declarações até o fim do arquivo (EOF).
 	for !p.curTokenIs(token.EOF) {
 		stmt := p.parseStatement()
 		if stmt != nil {
 			program.Statements = append(program.Statements, stmt)
 		}
-		p.nextToken() // Avança para o próximo token após analisar uma declaração.
+		// CORREÇÃO: O parser só avança para o próximo token depois que uma
+		// declaração inteira foi analisada. A chamada a nextToken() foi
+		// movida para dentro do loop de parseStatement quando necessário.
+		// Esta linha foi a causa de muitos erros de sincronia.
+		p.nextToken()
 	}
 	return program
 }

@@ -5,6 +5,22 @@ import (
 	"taquion/compiler/token"
 )
 
+// --- DECLARAÇÕES (STATEMENTS) ---
+
+// PackageStatement representa uma declaração 'package <nome>'
+type PackageStatement struct {
+	Token token.Token // O token 'package'
+	Name  *Identifier // O nome do pacote
+}
+
+func (ps *PackageStatement) statementNode()       {}
+func (ps *PackageStatement) TokenLiteral() string { return ps.Token.Literal }
+func (ps *PackageStatement) String() string {
+	initLogger()
+	logger.Printf("Gerando string para PackageStatement: %s %s", ps.TokenLiteral(), ps.Name.String())
+	return ps.TokenLiteral() + " " + ps.Name.String() + ";"
+}
+
 // LetStatement = let <nome> = <valor>;
 type LetStatement struct {
 	Token token.Token
@@ -15,6 +31,8 @@ type LetStatement struct {
 func (ls *LetStatement) statementNode()       {}
 func (ls *LetStatement) TokenLiteral() string { return ls.Token.Literal }
 func (ls *LetStatement) String() string {
+	initLogger()
+	logger.Printf("Gerando string para LetStatement: %s", ls.Name.Value)
 	var out bytes.Buffer
 	out.WriteString(ls.TokenLiteral() + " ")
 	out.WriteString(ls.Name.String())
@@ -35,6 +53,8 @@ type ReturnStatement struct {
 func (rs *ReturnStatement) statementNode()       {}
 func (rs *ReturnStatement) TokenLiteral() string { return rs.Token.Literal }
 func (rs *ReturnStatement) String() string {
+	initLogger()
+	logger.Println("Gerando string para ReturnStatement")
 	var out bytes.Buffer
 	out.WriteString(rs.TokenLiteral() + " ")
 	if rs.ReturnValue != nil {
@@ -53,6 +73,8 @@ type ExpressionStatement struct {
 func (es *ExpressionStatement) statementNode()       {}
 func (es *ExpressionStatement) TokenLiteral() string { return es.Token.Literal }
 func (es *ExpressionStatement) String() string {
+	initLogger()
+	logger.Println("Gerando string para ExpressionStatement")
 	if es.Expression != nil {
 		return es.Expression.String()
 	}
@@ -69,6 +91,8 @@ type AssignmentStatement struct {
 func (as *AssignmentStatement) statementNode()       {}
 func (as *AssignmentStatement) TokenLiteral() string { return as.Token.Literal }
 func (as *AssignmentStatement) String() string {
+	initLogger()
+	logger.Printf("Gerando string para AssignmentStatement: %s", as.Name.Value)
 	var out bytes.Buffer
 	out.WriteString(as.Name.String())
 	out.WriteString(" = ")

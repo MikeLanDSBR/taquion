@@ -14,9 +14,13 @@ type BlockStatement struct {
 func (bs *BlockStatement) statementNode()       {}
 func (bs *BlockStatement) TokenLiteral() string { return bs.Token.Literal }
 func (bs *BlockStatement) String() string {
+	initLogger()
+	logger.Println("Gerando string para BlockStatement")
 	var out bytes.Buffer
+	out.WriteString("{")
 	for _, s := range bs.Statements {
 		out.WriteString(s.String())
 	}
+	out.WriteString("}")
 	return out.String()
 }

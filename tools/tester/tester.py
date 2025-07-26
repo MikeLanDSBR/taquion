@@ -11,6 +11,7 @@ from builder import build_taquionc
 from runner import run_example
 
 EXPECTED = {
+    "start.taq":              200,
     "add.taq":                31,
     "advanced_test.taq":      100,
     "bool_test.taq":          0,
@@ -19,7 +20,6 @@ EXPECTED = {
     "if_statement.taq":       10,
     "let.taq":                10,
     "print_test.taq":         0,
-    "start.taq":              200,
 }
 
 def pause():

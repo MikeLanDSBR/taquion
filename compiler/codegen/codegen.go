@@ -39,8 +39,10 @@ func CloseLogger() {
 }
 
 type SymbolEntry struct {
-	Ptr llvm.Value
-	Typ llvm.Type
+	Value     llvm.Value
+	Ptr       llvm.Value
+	Typ       llvm.Type
+	IsLiteral bool
 }
 
 type CodeGenerator struct {
@@ -51,7 +53,6 @@ type CodeGenerator struct {
 	indentationLevel          int
 	currentFunctionReturnType llvm.Type
 
-	// Funções C embutidas
 	printfFunc     llvm.Value
 	printfFuncType llvm.Type
 	mallocFunc     llvm.Value
@@ -59,7 +60,6 @@ type CodeGenerator struct {
 	strcpyFunc     llvm.Value
 	strcatFunc     llvm.Value
 
-	// Contexto para loops (para break/continue)
 	loopCondBlock llvm.BasicBlock
 	loopEndBlock  llvm.BasicBlock
 }
@@ -119,6 +119,13 @@ func (c *CodeGenerator) Generate(program *ast.Program) llvm.Module {
 	return c.module
 }
 
+func (c *CodeGenerator) GetValueTypeSafe(val llvm.Value) llvm.Type {
+	if val.IsNil() {
+		return llvm.Type{}
+	}
+	return val.Type()
+}
+
 func isBlockTerminated(block llvm.BasicBlock) bool {
 	if block.IsNil() || block.LastInstruction().IsNil() {
 		return false
@@ -142,7 +149,7 @@ func (c *CodeGenerator) popScope() {
 }
 
 func (c *CodeGenerator) setSymbol(name string, entry SymbolEntry) {
-	c.logTrace(fmt.Sprintf("Definindo símbolo '%s' no escopo atual", name))
+	c.logTrace(fmt.Sprintf("Definindo símbolo '%s' no escopo atual. IsLiteral: %t, Ptr: %v, Value: %v, Typ: %v", name, entry.IsLiteral, entry.Ptr, entry.Value, entry.Typ))
 	c.symbolTable[len(c.symbolTable)-1][name] = entry
 }
 
@@ -150,7 +157,7 @@ func (c *CodeGenerator) getSymbol(name string) (SymbolEntry, bool) {
 	c.logTrace(fmt.Sprintf("Procurando símbolo '%s'", name))
 	for i := len(c.symbolTable) - 1; i >= 0; i-- {
 		if entry, ok := c.symbolTable[i][name]; ok {
-			c.logTrace(fmt.Sprintf("Símbolo '%s' encontrado no escopo %d", name, i))
+			c.logTrace(fmt.Sprintf("Símbolo '%s' encontrado no escopo %d. IsLiteral: %t, Ptr: %v, Value: %v, Typ: %v", name, i, entry.IsLiteral, entry.Ptr, entry.Value, entry.Typ))
 			return entry, true
 		}
 	}

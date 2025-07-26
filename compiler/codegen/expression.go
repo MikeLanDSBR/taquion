@@ -12,18 +12,17 @@ import (
 func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 	defer c.trace(fmt.Sprintf("genExpression (%T)", expr))()
 
-	i8PtrType := llvm.PointerType(c.context.Int8Type(), 0) // Define i8PtrType uma vez
+	i8PtrType := llvm.PointerType(c.context.Int8Type(), 0)
 
 	switch node := expr.(type) {
 	case *ast.IntegerLiteral:
 		val, _ := strconv.ParseInt(node.TokenLiteral(), 10, 64)
-		// Simplificado para i32 por enquanto para evitar problemas de promoção
 		return llvm.ConstInt(c.context.Int32Type(), uint64(val), false)
 
 	case *ast.StringLiteral:
-		// Cria a string global. O resultado é um ponteiro para o array ([N x i8]*).
+		c.logTrace(fmt.Sprintf("DEBUG: Gerando StringLiteral para: '%s'", node.Value))
 		globalStringPtr := c.builder.CreateGlobalStringPtr(node.Value, "str_literal")
-		// Converte o ponteiro para o array ([N x i8]*) para um i8*
+		c.logTrace(fmt.Sprintf("DEBUG: GlobalStringPtr criado. Valor: %v, Tipo: %v", globalStringPtr, c.GetValueTypeSafe(globalStringPtr)))
 		return c.builder.CreatePointerCast(globalStringPtr, i8PtrType, "str_literal_to_i8ptr")
 
 	case *ast.BooleanLiteral:
@@ -37,87 +36,35 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 		if !ok {
 			panic(fmt.Sprintf("variável não definida: %s", node.Value))
 		}
+		c.logTrace(fmt.Sprintf("DEBUG: Símbolo '%s' encontrado. IsLiteral: %t, Ptr: %v, Value: %v, Typ: %v", node.Value, entry.IsLiteral, entry.Ptr, entry.Value, entry.Typ))
 
-		// Se o símbolo é uma função, retorna o valor da função diretamente.
-		if entry.Typ.TypeKind() == llvm.FunctionTypeKind {
-			c.logTrace(fmt.Sprintf("DEBUG: Identifier '%s' is Function. Type: %s", node.Value, entry.Typ.String()))
-			return entry.Ptr
-		}
-
-		// Carrega o valor da variável.
-		loadedValue := c.builder.CreateLoad(entry.Typ, entry.Ptr, node.Value)
-
-		// Verifica se o tipo carregado é um ponteiro.
-		if loadedValue.Type().TypeKind() == llvm.PointerTypeKind {
-			// Caso 1: Ponteiro para um array de chars (ex: string literal global armazenada em const)
-			if loadedValue.Type().ElementType().TypeKind() == llvm.ArrayTypeKind &&
-				loadedValue.Type().ElementType().ElementType().TypeKind() == llvm.IntegerTypeKind &&
-				loadedValue.Type().ElementType().ElementType().IntTypeWidth() == 8 {
-
-				zero := llvm.ConstInt(c.context.Int32Type(), 0, false)
-				// GEP para obter um ponteiro para o primeiro char do array (i8*)
-				gepPtr := c.builder.CreateInBoundsGEP(loadedValue.Type().ElementType(), loadedValue, []llvm.Value{zero, zero}, "str_ptr_from_array")
-				return c.builder.CreatePointerCast(gepPtr, i8PtrType, "gep_to_i8ptr") // Garante que o GEP é i8*
-			} else if loadedValue.Type() == i8PtrType {
-				// Caso 2: Já é um i8*, retorna diretamente.
-				return loadedValue
+		if entry.IsLiteral {
+			c.logTrace(fmt.Sprintf("DEBUG: Símbolo '%s' é um literal/função. Retornando valor: %v", node.Value, entry.Value))
+			// Se for um literal que é um ponteiro (string alocada), precisa ser carregado
+			if !entry.Ptr.IsNil() {
+				return c.builder.CreateLoad(entry.Typ, entry.Ptr, node.Value)
 			}
-			// Se for um ponteiro para outro tipo (que não é string), retorna o valor carregado como está.
-			// Isso é importante para ponteiros para inteiros, etc.
-			// Não tentamos um cast para i8* aqui, pois isso pode ser incorreto para outros tipos de ponteiro.
-			return loadedValue
+			return entry.Value
 		}
-		// Para tipos não-ponteiro (int, bool, etc.), retorna o valor carregado como está.
+
+		c.logTrace(fmt.Sprintf("DEBUG: Símbolo '%s' é uma variável. Carregando do ponteiro: %v", node.Value, entry.Ptr))
+		loadedValue := c.builder.CreateLoad(entry.Typ, entry.Ptr, node.Value)
 		return loadedValue
 
 	case *ast.InfixExpression:
 		left := c.genExpression(node.Left)
 		right := c.genExpression(node.Right)
 
-		// Adicionado logging para depuração
-		// Verifica se left e right são válidos e se Type() retorna um tipo válido antes de chamar Type().String()
-		leftTypeStr := "UNKNOWN_OR_INVALID_TYPE"
-		leftTypeKindStr := "UNKNOWN_KIND"
-		if !left.IsNil() && !left.Type().IsNil() {
-			leftTypeStr = left.Type().String()
-			// Adiciona uma verificação para TypeKind para evitar pânico em tipos desconhecidos
-			if left.Type().TypeKind() >= llvm.VoidTypeKind && left.Type().TypeKind() <= llvm.MetadataTypeKind {
-				leftTypeKindStr = left.Type().TypeKind().String()
-			} else {
-				leftTypeKindStr = fmt.Sprintf("UNRECOGNIZED_TYPE_KIND(%d)", left.Type().TypeKind())
-			}
-		} else if !left.IsNil() && left.Type().IsNil() { // Caso onde Type() é nulo, mas Value não é
-			leftTypeStr = fmt.Sprintf("NIL_TYPE_FOR_VALUE(%v)", left)
-		}
-
-		rightTypeStr := "UNKNOWN_OR_INVALID_TYPE"
-		rightTypeKindStr := "UNKNOWN_KIND"
-		if !right.IsNil() && !right.Type().IsNil() {
-			rightTypeStr = right.Type().String()
-			if right.Type().TypeKind() >= llvm.VoidTypeKind && right.Type().TypeKind() <= llvm.MetadataTypeKind {
-				rightTypeKindStr = right.Type().TypeKind().String()
-			} else {
-				rightTypeKindStr = fmt.Sprintf("UNRECOGNIZED_TYPE_KIND(%d)", right.Type().TypeKind())
-			}
-		} else if !right.IsNil() && right.Type().IsNil() { // Caso onde Type() é nulo, mas Value não é
-			rightTypeStr = fmt.Sprintf("NIL_TYPE_FOR_VALUE(%v)", right)
-		}
-		c.logTrace(fmt.Sprintf("DEBUG: Infix '%s'. Left Type: %s (Kind: %s), Right Type: %s (Kind: %s)", node.Operator, leftTypeStr, leftTypeKindStr, rightTypeStr, rightTypeKindStr))
-
-		// A verificação de string agora é mais simples, pois genExpression já deve retornar i8*
-		isLeftString := left.Type() == i8PtrType
-		isRightString := right.Type() == i8PtrType
-
-		c.logTrace(fmt.Sprintf("DEBUG: isLeftString: %t, isRightString: %t", isLeftString, isRightString))
+		isLeftString := c.GetValueTypeSafe(left).TypeKind() == llvm.PointerTypeKind
+		isRightString := c.GetValueTypeSafe(right).TypeKind() == llvm.PointerTypeKind
 
 		if node.Operator == token.PLUS && isLeftString && isRightString {
 			c.logTrace(fmt.Sprintf("DEBUG: Entrando em genStringConcat para '%s' + '%s'", node.Left.String(), node.Right.String()))
 			return c.genStringConcat(left, right)
-		} else { // Adicionado o bloco 'else' para garantir exclusividade
+		} else {
 			c.logTrace(fmt.Sprintf("DEBUG: Entrando no switch de operadores aritméticos para '%s'", node.Operator))
 			switch node.Operator {
 			case token.PLUS:
-				c.logTrace(fmt.Sprintf("DEBUG: Gerando ADD para tipos: %s e %s", left.Type().String(), right.Type().String()))
 				return c.builder.CreateAdd(left, right, "addtmp")
 			case token.MINUS:
 				return c.builder.CreateSub(left, right, "subtmp")
@@ -150,22 +97,23 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 		if !ok {
 			panic(fmt.Sprintf("atribuição a variável não declarada: %s", ident.Value))
 		}
+		if entry.IsLiteral {
+			panic(fmt.Sprintf("atribuição a constante não é permitida: %s", ident.Value))
+		}
 		c.builder.CreateStore(val, entry.Ptr)
 		return val
 
 	case *ast.CallExpression:
-		// Lógica para funções embutidas
 		if node.Function.String() == "print" {
 			return c.genPrintCall(node)
 		}
 
-		// Lógica para funções definidas pelo usuário
 		symbol, ok := c.getSymbol(node.Function.String())
 		if !ok {
 			panic(fmt.Sprintf("função não definida: %s", node.Function.String()))
 		}
 
-		function := symbol.Ptr
+		function := symbol.Value
 		functionType := symbol.Typ
 
 		args := []llvm.Value{}
@@ -178,6 +126,9 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 	case *ast.IfExpression:
 		return c.genIfExpression(node)
 
+	case *ast.ArrayLiteral:
+		panic("Expressão não suportada: *ast.ArrayLiteral")
+
 	default:
 		panic(fmt.Sprintf("Expressão não suportada: %T\n", node))
 	}
@@ -186,52 +137,65 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 func (c *CodeGenerator) genStringConcat(left, right llvm.Value) llvm.Value {
 	c.logTrace("Gerando concatenação de strings")
 
-	// As funções de string C (strlen, strcpy, strcat) esperam i8*
-	// Certifique-se de que 'left' e 'right' são i8*
 	i8PtrType := llvm.PointerType(c.context.Int8Type(), 0)
+	sizeType := c.context.Int64Type()
 
-	// Garante que 'left' e 'right' são i8* usando CreatePointerCast.
-	// Isso é necessário porque o tipo pode ser um ponteiro para um array ([N x i8]*),
-	// e precisamos de um ponteiro para o primeiro elemento (i8*).
-	// CreatePointerCast pode converter entre tipos de ponteiro.
+	strlenType := llvm.FunctionType(sizeType, []llvm.Type{i8PtrType}, false)
+	mallocType := llvm.FunctionType(i8PtrType, []llvm.Type{sizeType}, false)
+	strcpyType := llvm.FunctionType(i8PtrType, []llvm.Type{i8PtrType, i8PtrType}, false)
+	strcatType := llvm.FunctionType(i8PtrType, []llvm.Type{i8PtrType, i8PtrType}, false)
+
 	finalLeft := c.builder.CreatePointerCast(left, i8PtrType, "str_concat_left_cast")
 	finalRight := c.builder.CreatePointerCast(right, i8PtrType, "str_concat_right_cast")
+	c.logTrace(fmt.Sprintf("DEBUG: Argumentos de concatenação: finalLeft=%v, finalRight=%v", finalLeft, finalRight))
 
-	len1 := c.builder.CreateCall(c.strlenFunc.Type(), c.strlenFunc, []llvm.Value{finalLeft}, "len1")
-	len2 := c.builder.CreateCall(c.strlenFunc.Type(), c.strlenFunc, []llvm.Value{finalRight}, "len2")
+	len1 := c.builder.CreateCall(strlenType, c.strlenFunc, []llvm.Value{finalLeft}, "len1")
+	len2 := c.builder.CreateCall(strlenType, c.strlenFunc, []llvm.Value{finalRight}, "len2")
 	totalLen := c.builder.CreateAdd(len1, len2, "totalLen")
 	bufferSize := c.builder.CreateAdd(totalLen, llvm.ConstInt(c.context.Int64Type(), 1, false), "bufferSize")
-	newBuffer := c.builder.CreateCall(c.mallocFunc.Type(), c.mallocFunc, []llvm.Value{bufferSize}, "new_string")
+	newBuffer := c.builder.CreateCall(mallocType, c.mallocFunc, []llvm.Value{bufferSize}, "new_string")
 
-	// O newBuffer retornado por malloc já é i8*, então não precisa de cast adicional
-	// a menos que mallocType seja diferente de i8PtrType (o que não é o caso aqui).
+	c.builder.CreateCall(strcpyType, c.strcpyFunc, []llvm.Value{newBuffer, finalLeft}, "")
+	c.builder.CreateCall(strcatType, c.strcatFunc, []llvm.Value{newBuffer, finalRight}, "")
 
-	c.builder.CreateCall(c.strcpyFunc.Type(), c.strcpyFunc, []llvm.Value{newBuffer, finalLeft}, "")
-	c.builder.CreateCall(c.strcatFunc.Type(), c.strcatFunc, []llvm.Value{newBuffer, finalRight}, "")
+	c.logTrace(fmt.Sprintf("DEBUG: Concatenação completa. Retornando novo buffer: %v", newBuffer))
+
 	return newBuffer
 }
 
+// genPrintCall foi refatorada para ser mais robusta
 func (c *CodeGenerator) genPrintCall(call *ast.CallExpression) llvm.Value {
 	arg := c.genExpression(call.Arguments[0])
-	argType := arg.Type()
+	argType := c.GetValueTypeSafe(arg)
 	var format llvm.Value
 	finalArg := arg
-	if argType.TypeKind() == llvm.IntegerTypeKind {
+
+	if arg.IsNil() {
+		panic(fmt.Sprintf("valor nulo passado para a função print"))
+	}
+
+	if argType.IsNil() {
+		panic(fmt.Sprintf("tipo nulo para o argumento da função print: %v", arg))
+	}
+
+	switch argType.TypeKind() {
+	case llvm.IntegerTypeKind:
 		format = c.builder.CreateGlobalStringPtr("%d\n", "fmt_int")
 		if argType.IntTypeWidth() < 32 {
 			finalArg = c.builder.CreateSExt(arg, c.context.Int32Type(), "printf_arg_promo")
 		}
-	} else if argType.TypeKind() == llvm.PointerTypeKind {
-		// Garante que a string passada para printf seja i8*
-		i8PtrType := llvm.PointerType(c.context.Int8Type(), 0)
-		if arg.Type() != i8PtrType {
-			finalArg = c.builder.CreatePointerCast(arg, i8PtrType, "printf_arg_str_cast")
-		}
+	case llvm.PointerTypeKind:
 		format = c.builder.CreateGlobalStringPtr("%s\n", "fmt_str")
-	} else {
-		panic(fmt.Sprintf("tipo não suportado para a função print: %s", argType.String()))
+		finalArg = arg
+	default:
+		i8PtrType := llvm.PointerType(c.context.Int8Type(), 0)
+		finalArg = c.builder.CreatePointerCast(arg, i8PtrType, "printf_arg_forced_cast")
+		format = c.builder.CreateGlobalStringPtr("%s\n", "fmt_str")
 	}
-	return c.builder.CreateCall(c.printfFuncType, c.printfFunc, []llvm.Value{format, finalArg}, "printf_call")
+
+	printfFuncType := llvm.FunctionType(c.context.Int32Type(), []llvm.Type{llvm.PointerType(c.context.Int8Type(), 0)}, true)
+
+	return c.builder.CreateCall(printfFuncType, c.printfFunc, []llvm.Value{format, finalArg}, "printf_call")
 }
 
 func (c *CodeGenerator) genIfExpression(ie *ast.IfExpression) llvm.Value {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"taquion/compiler/ast"
 
-	"tinygo.org/x/go-llvm"
+	"github.com/MikeLanDSBR/go-llvm"
 )
 
 func (c *CodeGenerator) genStatement(stmt ast.Statement) {

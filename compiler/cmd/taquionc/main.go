@@ -10,7 +10,7 @@ import (
 	"taquion/compiler/parser"
 	"taquion/compiler/token"
 
-	"tinygo.org/x/go-llvm"
+	"github.com/MikeLanDSBR/go-llvm"
 )
 
 func main() {

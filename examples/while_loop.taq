@@ -1,0 +1,14 @@
+package main
+
+func main() {
+    let contador = 0;
+    const limite = 5;
+
+    while (contador < limite) {
+        print(contador);
+        contador = contador + 1;
+    }
+
+    print("Fim do loop!");
+    return 0;
+}

@@ -1,0 +1,18 @@
+package main
+
+func main() {
+    let x = 100;
+    print("x no escopo externo (antes do bloco):");
+    print(x);
+
+    if (x == 100) {
+        let x = 200; // "Sombra" a variável externa
+        print("x no escopo interno:");
+        print(x); // Deve imprimir 200
+    }
+
+    print("x no escopo externo (depois do bloco):");
+    print(x); // Deve imprimir 100
+
+    return 0;
+}

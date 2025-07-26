@@ -1,0 +1,23 @@
+package main
+
+func verifica_par(n) {
+    if (n % 2 == 0) {
+        return 1; // Retorna 1 se for par
+    } else {
+        return 0; // Retorna 0 se for ímpar
+    }
+    // O código aqui nunca deve ser alcançado
+    print("Esta mensagem não deve aparecer");
+}
+
+func main() {
+    const resultado_par = verifica_par(10);
+    print("Verificando 10 (esperado 1):");
+    print(resultado_par);
+
+    const resultado_impar = verifica_par(7);
+    print("Verificando 7 (esperado 0):");
+    print(resultado_impar);
+
+    return 0;
+}

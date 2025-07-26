@@ -1,0 +1,18 @@
+package main
+
+func main() {
+    let i = 0;
+    while (i < 10) {
+        i = i + 1;
+        if (i == 3) {
+            print("Pulando o 3 com continue");
+            continue;
+        }
+        if (i == 7) {
+            print("Saindo do loop com break no 7");
+            break;
+        }
+        print(i);
+    }
+    return 0;
+}

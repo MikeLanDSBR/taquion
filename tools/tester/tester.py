@@ -11,6 +11,7 @@ from builder import build_taquionc
 from runner import run_example
 
 EXPECTED = {
+    # --- Testes existentes ---
     "start.taq":              200,  # estrutura mínima, ponto de partida
     "const.taq":              10,   # constante simples
     "add.taq":                31,   # operação aritmética básica
@@ -20,6 +21,17 @@ EXPECTED = {
     "functions_test.taq":     15,   # chamada de função
     "hello_world.taq":        0,    # strings, atribuições
     "advanced_test.taq":      100,  # mistura de várias features
+
+    # --- Novos testes, ordenados por complexidade ---
+    "math_precendence.taq":   0,    # Valida a precedência de operadores
+    "nested_ifs.taq":         0,    # Valida condicionais aninhadas e escopo
+    "multi_return.taq":       0,    # Garante que múltiplos returns em condicionais funcionam
+    "function_recursion.taq": 0,    # Testa a pilha de chamadas com recursão
+    "scope_shadowing.taq":    0,    # Valida o sombreamento de variáveis (let vs. const)
+    "string_concat.taq":      0,    # Testa a concatenação de strings
+    "while_loop.taq":         0,    # Implementação de loop 'while'
+    "break_continue.taq":     0,    # Controle de fluxo dentro de loops
+    "array_basic.taq":        0,    # Suporte básico para arrays (declaração e acesso)
 }
 
 def pause():

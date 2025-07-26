@@ -1,0 +1,13 @@
+package main
+
+func main() {
+    const parte1 = "Olá, ";
+    const parte2 = "Mundo!";
+
+    // Sintaxe proposta para concatenação
+    let saudacao = parte1 + parte2;
+
+    print(saudacao); // Deve imprimir "Olá, Mundo!"
+
+    return 0;
+}

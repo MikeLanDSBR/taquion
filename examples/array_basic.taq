@@ -1,0 +1,15 @@
+package main
+
+func main() {
+    // Sintaxe proposta para arrays
+    let meu_array = [10, 20, 30, 40];
+
+    print("O segundo elemento é:");
+    print(meu_array[1]); // Deve imprimir 20
+
+    meu_array[1] = 25;
+    print("O novo segundo elemento é:");
+    print(meu_array[1]); // Deve imprimir 25
+
+    return 0;
+}

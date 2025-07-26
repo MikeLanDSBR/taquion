@@ -1,0 +1,13 @@
+package main
+
+func main() {
+    // O resultado deve ser 20 (2 * 5 = 10, 10 + 10 = 20)
+    const resultado1 = 10 + 2 * 5;
+    print(resultado1);
+
+    // O resultado deve ser 60 ((10 + 2) = 12, 12 * 5 = 60)
+    const resultado2 = (10 + 2) * 5;
+    print(resultado2);
+
+    return 0;
+}

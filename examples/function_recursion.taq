@@ -1,0 +1,18 @@
+package main
+
+func fatorial(n) {
+    if (n < 2) {
+        return 1;
+    }
+    return n * fatorial(n - 1);
+}
+
+func main() {
+    const numero = 5;
+    const resultado = fatorial(numero);
+
+    print("O fatorial de 5 é:");
+    print(resultado); // Deve imprimir 120
+
+    return 0;
+}

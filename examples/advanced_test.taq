@@ -3,7 +3,7 @@ package main
 func main() {
     const a = 20;
     const b = 30;
-    const resultado = 0;
+    let resultado = 0; // Mudança de 'const' para 'let'
 
     if a < b {
         const temp = a + b;

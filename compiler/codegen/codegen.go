@@ -17,6 +17,7 @@ var (
 	initOnce sync.Once
 )
 
+// initLogger inicializa o sistema de logging do codegen.
 func initLogger() {
 	initOnce.Do(func() {
 		if err := os.MkdirAll("log", 0755); err != nil {
@@ -32,19 +33,23 @@ func initLogger() {
 	})
 }
 
+// CloseLogger fecha o arquivo de log.
 func CloseLogger() {
 	if logFile != nil {
 		logFile.Close()
 	}
 }
 
+// SymbolEntry armazena informações sobre um símbolo na tabela de símbolos.
 type SymbolEntry struct {
 	Value     llvm.Value
 	Ptr       llvm.Value
 	Typ       llvm.Type
+	ArrayType llvm.Type // Adicionado para armazenar o tipo base do array (ex: [4 x i32])
 	IsLiteral bool
 }
 
+// CodeGenerator é a estrutura principal para gerar código LLVM IR.
 type CodeGenerator struct {
 	module                    llvm.Module
 	builder                   llvm.Builder
@@ -64,6 +69,7 @@ type CodeGenerator struct {
 	loopEndBlock  llvm.BasicBlock
 }
 
+// NewCodeGenerator cria uma nova instância do CodeGenerator.
 func NewCodeGenerator() *CodeGenerator {
 	initLogger()
 	ctx := llvm.NewContext()
@@ -79,28 +85,12 @@ func NewCodeGenerator() *CodeGenerator {
 	return cg
 }
 
-func (c *CodeGenerator) declareCFunctions() {
-	i8PtrType := llvm.PointerType(c.context.Int8Type(), 0)
-	sizeType := c.context.Int64Type()
-
-	c.printfFuncType = llvm.FunctionType(c.context.Int32Type(), []llvm.Type{i8PtrType}, true)
-	c.printfFunc = llvm.AddFunction(c.module, "printf", c.printfFuncType)
-
-	mallocType := llvm.FunctionType(i8PtrType, []llvm.Type{sizeType}, false)
-	c.mallocFunc = llvm.AddFunction(c.module, "malloc", mallocType)
-
-	strlenType := llvm.FunctionType(sizeType, []llvm.Type{i8PtrType}, false)
-	c.strlenFunc = llvm.AddFunction(c.module, "strlen", strlenType)
-
-	strcpyType := llvm.FunctionType(i8PtrType, []llvm.Type{i8PtrType, i8PtrType}, false)
-	c.strcpyFunc = llvm.AddFunction(c.module, "strcpy", strcpyType)
-	c.strcatFunc = llvm.AddFunction(c.module, "strcat", strcpyType)
-}
-
+// Close fecha o CodeGenerator e seus recursos.
 func (c *CodeGenerator) Close() {
 	CloseLogger()
 }
 
+// Generate percorre a AST e gera o código LLVM IR.
 func (c *CodeGenerator) Generate(program *ast.Program) llvm.Module {
 	defer c.trace("Generate")()
 	for _, stmt := range program.Statements {
@@ -119,6 +109,7 @@ func (c *CodeGenerator) Generate(program *ast.Program) llvm.Module {
 	return c.module
 }
 
+// GetValueTypeSafe retorna o tipo de um valor LLVM de forma segura.
 func (c *CodeGenerator) GetValueTypeSafe(val llvm.Value) llvm.Type {
 	if val.IsNil() {
 		return llvm.Type{}
@@ -126,6 +117,7 @@ func (c *CodeGenerator) GetValueTypeSafe(val llvm.Value) llvm.Type {
 	return val.Type()
 }
 
+// isBlockTerminated verifica se um bloco de código termina com uma instrução de terminação.
 func isBlockTerminated(block llvm.BasicBlock) bool {
 	if block.IsNil() || block.LastInstruction().IsNil() {
 		return false
@@ -138,6 +130,7 @@ func isBlockTerminated(block llvm.BasicBlock) bool {
 	}
 }
 
+// Métodos de gerenciamento de escopo.
 func (c *CodeGenerator) pushScope() {
 	c.logTrace("=> Entrando em novo escopo")
 	c.symbolTable = append(c.symbolTable, make(map[string]SymbolEntry))
@@ -149,7 +142,20 @@ func (c *CodeGenerator) popScope() {
 }
 
 func (c *CodeGenerator) setSymbol(name string, entry SymbolEntry) {
-	c.logTrace(fmt.Sprintf("Definindo símbolo '%s' no escopo atual. IsLiteral: %t, Ptr: %v, Value: %v, Typ: %v", name, entry.IsLiteral, entry.Ptr, entry.Value, entry.Typ))
+	// CORREÇÃO: Constrói a string de log de forma segura, evitando chamar .String() em um tipo nulo.
+	arrayTypeStr := "nil"
+	if !entry.ArrayType.IsNil() {
+		arrayTypeStr = entry.ArrayType.String()
+	}
+	typStr := "nil"
+	if !entry.Typ.IsNil() {
+		typStr = entry.Typ.String()
+	}
+
+	c.logTrace(fmt.Sprintf(
+		"Definindo símbolo '%s' no escopo atual. IsLiteral: %t, Ptr: %v, Value: %v, Typ: %s, ArrayType: %s",
+		name, entry.IsLiteral, entry.Ptr, entry.Value, typStr, arrayTypeStr,
+	))
 	c.symbolTable[len(c.symbolTable)-1][name] = entry
 }
 
@@ -157,7 +163,19 @@ func (c *CodeGenerator) getSymbol(name string) (SymbolEntry, bool) {
 	c.logTrace(fmt.Sprintf("Procurando símbolo '%s'", name))
 	for i := len(c.symbolTable) - 1; i >= 0; i-- {
 		if entry, ok := c.symbolTable[i][name]; ok {
-			c.logTrace(fmt.Sprintf("Símbolo '%s' encontrado no escopo %d. IsLiteral: %t, Ptr: %v, Value: %v, Typ: %v", name, i, entry.IsLiteral, entry.Ptr, entry.Value, entry.Typ))
+			// CORREÇÃO: Constrói a string de log de forma segura.
+			arrayTypeStr := "nil"
+			if !entry.ArrayType.IsNil() {
+				arrayTypeStr = entry.ArrayType.String()
+			}
+			typStr := "nil"
+			if !entry.Typ.IsNil() {
+				typStr = entry.Typ.String()
+			}
+			c.logTrace(fmt.Sprintf(
+				"Símbolo '%s' encontrado no escopo %d. IsLiteral: %t, Ptr: %v, Value: %v, Typ: %s, ArrayType: %s",
+				name, i, entry.IsLiteral, entry.Ptr, entry.Value, typStr, arrayTypeStr,
+			))
 			return entry, true
 		}
 	}
@@ -165,6 +183,7 @@ func (c *CodeGenerator) getSymbol(name string) (SymbolEntry, bool) {
 	return SymbolEntry{}, false
 }
 
+// Métodos de logging e rastreamento.
 func (c *CodeGenerator) logTrace(msg string) {
 	indent := strings.Repeat("    ", c.indentationLevel)
 	logger.Printf("%s%s\n", indent, msg)

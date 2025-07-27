@@ -1,0 +1,19 @@
+package main
+
+// Calcula o enésimo número de Fibonacci de forma recursiva.
+func fib(n) {
+    if (n < 2) {
+        return n;
+    }
+    return fib(n - 1) + fib(n - 2);
+}
+
+func main() {
+    const N = 42;
+    let resultado = fib(N);
+    
+    print("Taquion | Resultado: ");
+    print(resultado); // O resultado esperado para fib(42) é 267914296
+    print("");
+    return 0;
+}

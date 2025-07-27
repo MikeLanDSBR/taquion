@@ -89,7 +89,6 @@ func (c *CodeGenerator) genAssignmentExpression(node *ast.AssignmentExpression) 
 			indexValue,
 		}
 
-		// CORREÇÃO: Usa o tipo de array explicitamente armazenado na tabela de símbolos.
 		elementPtr := c.builder.CreateInBoundsGEP(arrayEntry.ArrayType, arrayPtr, indices, "array_element_ptr")
 		c.builder.CreateStore(val, elementPtr)
 		return val
@@ -113,15 +112,15 @@ func (c *CodeGenerator) genCallExpression(node *ast.CallExpression) llvm.Value {
 	function := symbol.Value
 	functionType := symbol.Typ
 
-	args := []llvm.Value{}
-	for _, argExpr := range node.Arguments {
-		args = append(args, c.genExpression(argExpr))
+	args := make([]llvm.Value, len(node.Arguments))
+	for i, argExpr := range node.Arguments {
+		args[i] = c.genExpression(argExpr)
 	}
 
 	return c.builder.CreateCall(functionType, function, args, "calltmp")
 }
 
-// genIfExpression gera código para uma expressão `if`.
+// ... (resto do arquivo `expressions_operators.go` sem alterações) ...
 func (c *CodeGenerator) genIfExpression(node *ast.IfExpression) llvm.Value {
 	c.logTrace("DEBUG: Gerando expressão 'if'")
 	cond := c.genExpression(node.Condition)
@@ -150,7 +149,6 @@ func (c *CodeGenerator) genIfExpression(node *ast.IfExpression) llvm.Value {
 	return llvm.Value{}
 }
 
-// genPrefixExpression gera código para uma expressão de prefixo.
 func (c *CodeGenerator) genPrefixExpression(node *ast.PrefixExpression) llvm.Value {
 	c.logTrace(fmt.Sprintf("DEBUG: Gerando expressão prefixo: %s", node.Operator))
 	right := c.genExpression(node.Right)
@@ -164,13 +162,10 @@ func (c *CodeGenerator) genPrefixExpression(node *ast.PrefixExpression) llvm.Val
 	}
 }
 
-// genFunctionLiteral gera código para uma função anônima (literal).
 func (c *CodeGenerator) genFunctionLiteral(node *ast.FunctionLiteral) llvm.Value {
-	// Implementação pendente
 	return llvm.Value{}
 }
 
-// genPrintCall gera código para a chamada da função `print`.
 func (c *CodeGenerator) genPrintCall(call *ast.CallExpression) llvm.Value {
 	c.logTrace("DEBUG: Gerando chamada para a função 'print'")
 	arg := c.genExpression(call.Arguments[0])
@@ -181,7 +176,6 @@ func (c *CodeGenerator) genPrintCall(call *ast.CallExpression) llvm.Value {
 	if arg.IsNil() {
 		panic(fmt.Sprintf("argumento nulo para a função print: %v", call.Arguments[0]))
 	}
-
 	if argType.IsNil() {
 		panic(fmt.Sprintf("tipo nulo para o argumento da função print: %v", arg))
 	}
@@ -194,9 +188,8 @@ func (c *CodeGenerator) genPrintCall(call *ast.CallExpression) llvm.Value {
 			finalArg = c.builder.CreateSExt(arg, c.context.Int32Type(), "printf_arg_promo")
 		}
 	case llvm.PointerTypeKind:
-		c.logTrace("DEBUG: Argumento de impressão é um ponteiro (string ou array).")
+		c.logTrace("DEBUG: Argumento de impressão é um ponteiro (string).")
 		format = c.builder.CreateGlobalStringPtr("%s\n", "fmt_str")
-		finalArg = arg
 	default:
 		c.logTrace("DEBUG: Argumento de impressão é um tipo desconhecido, tentando conversão para string.")
 		i8PtrType := llvm.PointerType(c.context.Int8Type(), 0)
@@ -205,11 +198,9 @@ func (c *CodeGenerator) genPrintCall(call *ast.CallExpression) llvm.Value {
 	}
 
 	printfFuncType := llvm.FunctionType(c.context.Int32Type(), []llvm.Type{llvm.PointerType(c.context.Int8Type(), 0)}, true)
-
 	return c.builder.CreateCall(printfFuncType, c.printfFunc, []llvm.Value{format, finalArg}, "printf_call")
 }
 
-// genStringConcat gera código para a concatenação de strings.
 func (c *CodeGenerator) genStringConcat(left, right llvm.Value) llvm.Value {
 	c.logTrace("Gerando concatenação de strings")
 
@@ -235,6 +226,5 @@ func (c *CodeGenerator) genStringConcat(left, right llvm.Value) llvm.Value {
 	c.builder.CreateCall(strcatType, c.strcatFunc, []llvm.Value{newBuffer, finalRight}, "")
 
 	c.logTrace(fmt.Sprintf("DEBUG: Concatenação completa. Retornando novo buffer: %v", newBuffer))
-
 	return newBuffer
 }

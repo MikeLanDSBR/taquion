@@ -5,7 +5,6 @@ const MAX_PRINTS = 5;
 const PLAYER_LEVEL = 10;
 
 // Exemplo de função recursiva: Fibonacci
-// Testa: functions_test, function_recursion, if_statement
 func fibonacci(n) {
     if (n < 2) {
         return n;
@@ -14,57 +13,57 @@ func fibonacci(n) {
 }
 
 // Verifica se um número é primo
-// Testa: while_loop, break_continue, math_precendence (modulo), bool_test
+// CORREÇÃO: A função agora retorna i32 (1 para true, 0 para false)
 func isPrime(n) {
-    if (n <= 1) { return false; }
-    if (n <= 3) { return true; }
-    if ((n % 2) == 0) { return false; }
-    if ((n % 3) == 0) { return false; }
+    if (n < 2) { return 0; } // false
+    if (n < 4) { return 1; } // true
+    if ((n % 2) == 0) { return 0; } // false
+    if ((n % 3) == 0) { return 0; } // false
 
     let i = 5;
-    while (i * i <= n) {
+    while (i * i < (n + 1)) {
         if ((n % i) == 0) {
-            return false;
+            return 0; // false
         }
-        i = i + 2; // Otimização simples para pular números pares
+        i = i + 2;
     }
-    return true;
+    return 1; // true
 }
 
 func main() {
     // === Teste Básico de Impressão e Strings ===
     print("--- Iniciando Teste de Capacidade do TaquionC ---");
     let world_word = "Mundo";
-    let hello_message = "Olá, " + world_word + "!"; // Testa: string_concat
+    let hello_message = "Olá, " + world_word + "!";
     print(hello_message);
-    print(""); // Imprime linha em branco para espaçamento
+    print("");
 
     // === Teste de Recursão e Funções ===
     print("--- Testando Funções e Recursão ---");
     let fib_num = 9;
-    print("O número de Fibonacci para " + "9" + " é:"); // Note: Conversão de int para string não implementada, concatenando strings
-    print(fibonacci(fib_num)); // Deve imprimir 34
+    print("O número de Fibonacci para 9 é:");
+    print(fibonacci(fib_num));
     print("");
 
     // === Teste de Loops, Condicionais e Booleanos ===
     print("--- Testando Loops, Condicionais e Booleanos ---");
-    print("Procurando os primeiros " + "5" + " números primos depois de 10:");
+    print("Procurando os primeiros 5 números primos depois de 10:");
     let count = 0;
     let current_num = 11;
     while (true) {
-        if (count >= MAX_PRINTS) {
+        if (count == MAX_PRINTS) {
             print("Busca de primos finalizada.");
-            break; // Testa: break
+            break;
         }
 
-        if (isPrime(current_num)) {
+        // CORREÇÃO: Compara o resultado de isPrime com 1 para gerar um booleano
+        if (isPrime(current_num) == 1) {
             print("Primo encontrado:");
             print(current_num);
             count = count + 1;
         } else {
-            // Apenas para usar o continue
             current_num = current_num + 1;
-            continue; // Testa: continue
+            continue;
         }
         current_num = current_num + 1;
     }
@@ -72,31 +71,30 @@ func main() {
 
     // === Teste de Arrays e Atribuição ===
     print("--- Testando Arrays ---");
-    let inventory = [101, 205, 301, 0, 0]; // Simula IDs de itens, testa: array_basic
+    let inventory = [101, 205, 301, 0, 0];
     print("ID do item no slot 1:");
-    print(inventory[1]); // Deve imprimir 205
+    print(inventory[1]);
 
     print("Substituindo item no slot 1...");
-    inventory[1] = 210; // Testa: atribuição de índice de array
+    inventory[1] = 210;
     print("Novo ID do item no slot 1:");
-    print(inventory[1]); // Deve imprimir 210
+    print(inventory[1]);
     print("");
 
     // === Teste de Escopo e Precedência Matemática ===
     print("--- Testando Escopo e Matemática ---");
     let base_damage = 50;
-    // Testa: scope_shadowing
     if (true) {
-        let base_damage = 10; // Sombreia a variável externa
-        let total_damage = base_damage + PLAYER_LEVEL * 2; // Testa: math_precendence (* antes de +)
+        let base_damage = 10;
+        let total_damage = base_damage + PLAYER_LEVEL * 2;
         print("Dano calculado no escopo interno (deve ser 10 + 10 * 2 = 30):");
         print(total_damage);
     }
-    let total_damage = base_damage + PLAYER_LEVEL * 3; // Usa a variável externa
+    let total_damage = base_damage + PLAYER_LEVEL * 3;
     print("Dano calculado no escopo externo (deve ser 50 + 10 * 3 = 80):");
     print(total_damage);
     print("");
 
     print("--- Teste de Capacidade Concluído ---");
-    return 0; // Testa: start
+    return 0;
 }

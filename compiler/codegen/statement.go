@@ -46,46 +46,37 @@ func (c *CodeGenerator) genPackageStatement(node *ast.PackageStatement) {
 func (c *CodeGenerator) genLetStatement(node *ast.LetStatement) {
 	c.logTrace(fmt.Sprintf("Gerando declaração 'let' para a variável '%s'", node.Name.Value))
 
-	// CORREÇÃO FINAL: Em vez de inspecionar o tipo LLVM, inspecionamos o tipo do nó da AST.
-	if arrayLit, ok := node.Value.(*ast.ArrayLiteral); ok {
-		// Se for um ArrayLiteral, nós sabemos a verdade e podemos construir o tipo correto.
-		c.logTrace("Expressão é um ArrayLiteral. Tratamento especial de tipo.")
-		elemCount := len(arrayLit.Elements)
-		elemType := c.context.Int32Type() // Assumindo arrays de i32 por enquanto
-		correctArrayType := llvm.ArrayType(elemType, elemCount)
-
-		// Agora geramos o valor, sabendo que podemos ignorar seu tipo reportado.
-		val := c.genExpression(arrayLit)
-		valType := val.Type()
-		ptr := c.builder.CreateAlloca(valType, node.Name.Value)
-		c.builder.CreateStore(val, ptr)
-		c.logTrace(fmt.Sprintf("DEBUG: Alocando ponteiro para a variável: %v", ptr))
-
-		// Armazenamos o tipo que NÓS construímos, que é garantidamente correto.
-		entry := SymbolEntry{Ptr: ptr, Typ: valType, ArrayType: correctArrayType, IsLiteral: false}
-		c.setSymbol(node.Name.Value, entry)
-	} else {
-		// Caso genérico para todas as outras expressões (inteiros, strings, etc.)
-		val := c.genExpression(node.Value)
-		valType := c.GetValueTypeSafe(val)
-		if valType.IsNil() {
-			panic(fmt.Sprintf("tipo inválido para a variável 'let' %s", node.Name.Value))
-		}
-
-		ptr := c.builder.CreateAlloca(valType, node.Name.Value)
-		c.builder.CreateStore(val, ptr)
-		c.logTrace(fmt.Sprintf("DEBUG: Alocando ponteiro para a variável: %v", ptr))
-
-		entry := SymbolEntry{Ptr: ptr, Typ: valType, IsLiteral: false}
-		c.setSymbol(node.Name.Value, entry)
+	val := c.genExpression(node.Value)
+	valType := c.GetValueTypeSafe(val)
+	if valType.IsNil() {
+		panic(fmt.Sprintf("tipo inválido para a variável 'let' %s", node.Name.Value))
 	}
+
+	ptr := c.builder.CreateAlloca(valType, node.Name.Value)
+	c.builder.CreateStore(val, ptr)
+	c.logTrace(fmt.Sprintf("DEBUG: Alocando ponteiro para a variável: %v", ptr))
+
+	entry := SymbolEntry{Ptr: ptr, Typ: valType, IsLiteral: false}
+
+	switch valueNode := node.Value.(type) {
+	case *ast.ArrayLiteral:
+		elemCount := len(valueNode.Elements)
+		elemType := c.context.Int32Type()
+		entry.ArrayType = llvm.ArrayType(elemType, elemCount)
+	case *ast.Identifier:
+		if symbol, ok := c.getSymbol(valueNode.Value); ok {
+			if !symbol.ArrayType.IsNil() {
+				entry.ArrayType = symbol.ArrayType
+			}
+		}
+	}
+	c.setSymbol(node.Name.Value, entry)
 }
 
 // genConstStatement gera código para a declaração de constantes.
 func (c *CodeGenerator) genConstStatement(node *ast.ConstStatement) {
 	c.logTrace(fmt.Sprintf("Gerando declaração 'const' para a constante '%s'", node.Name.Value))
 	val := c.genExpression(node.Value)
-
 	isConst := !val.IsAConstant().IsNil()
 	typ := c.GetValueTypeSafe(val)
 
@@ -139,6 +130,7 @@ func (c *CodeGenerator) genFunctionDeclaration(node *ast.FunctionDeclaration) {
 	c.currentFunctionReturnType = retType
 	c.logTrace(fmt.Sprintf("DEBUG: Tipo de retorno da função '%s': %v", node.Name.Value, retType))
 
+	// CORREÇÃO: Revertido para que parâmetros sejam i32 por padrão.
 	paramTypes := make([]llvm.Type, len(node.Parameters))
 	for i := range node.Parameters {
 		paramTypes[i] = c.context.Int32Type()
@@ -163,13 +155,16 @@ func (c *CodeGenerator) genFunctionDeclaration(node *ast.FunctionDeclaration) {
 
 		c.genStatement(node.Body)
 		c.popScope()
+
 		if !isBlockTerminated(c.builder.GetInsertBlock()) {
-			c.builder.CreateRet(llvm.ConstInt(retType, 0, false))
+			if retType.TypeKind() == llvm.IntegerTypeKind {
+				c.builder.CreateRet(llvm.ConstInt(retType, 0, false))
+			}
 		}
 	}
 }
 
-// genWhileStatement gera código para um loop `while`.
+// ... (resto do arquivo `statement.go` sem alterações) ...
 func (c *CodeGenerator) genWhileStatement(node *ast.WhileStatement) {
 	function := c.builder.GetInsertBlock().Parent()
 	condBlock := c.context.AddBasicBlock(function, "loop_cond")
@@ -203,7 +198,6 @@ func (c *CodeGenerator) genWhileStatement(node *ast.WhileStatement) {
 	c.loopEndBlock = prevLoopEnd
 }
 
-// genBreakStatement gera código para a instrução `break`.
 func (c *CodeGenerator) genBreakStatement(node *ast.BreakStatement) {
 	if c.loopEndBlock.IsNil() {
 		panic("'break' fora de um loop")
@@ -211,7 +205,6 @@ func (c *CodeGenerator) genBreakStatement(node *ast.BreakStatement) {
 	c.builder.CreateBr(c.loopEndBlock)
 }
 
-// genContinueStatement gera código para a instrução `continue`.
 func (c *CodeGenerator) genContinueStatement(node *ast.ContinueStatement) {
 	if c.loopCondBlock.IsNil() {
 		panic("'continue' fora de um loop")

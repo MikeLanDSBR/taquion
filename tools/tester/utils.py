@@ -19,4 +19,17 @@ def get_llvm_flags() -> tuple[str, str]:
     return cflags, ldflags
 
 def find_examples(examples_dir: Path) -> list[Path]:
-    return sorted(examples_dir.glob("*.taq"))
+    """
+    Encontra todos os exemplos no novo formato:
+    Cada subpasta de `examples/` deve conter um arquivo `main` ou `main.taq`.
+    """
+    examples = []
+    for subdir in examples_dir.iterdir():
+        if subdir.is_dir():
+            main_file = subdir / "main"
+            main_taq_file = subdir / "main.taq"
+            if main_taq_file.exists():
+                examples.append(main_taq_file)
+            elif main_file.exists():
+                examples.append(main_file)
+    return sorted(examples)

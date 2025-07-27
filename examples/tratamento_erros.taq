@@ -1,0 +1,20 @@
+package main
+
+// Degrau 14: Tratamento de Erros com 'try-catch'
+// Essencial para lidar com situações inesperadas e falhas em tempo de execução.
+
+func divisao(a, b int) int {
+    if b == 0 {
+        throw "Divisão por zero!"
+    }
+    return a / b
+}
+
+func main() {
+    try {
+        var resultado int = divisao(10, 0)
+        print("Resultado: " + resultado)
+    } catch (err string) {
+        print("Erro: " + err)
+    }
+}

@@ -1,0 +1,16 @@
+package main
+
+// Degrau 15: Laço de Repetição 'for-each'
+// Uma forma mais simples e segura de iterar sobre coleções como arrays.
+
+func main() {
+    let numeros [3]int
+    numeros[0] = 10
+    numeros[1] = 20
+    numeros[2] = 30
+
+    // Itera sobre cada elemento do array
+    for valor in numeros {
+        print("Valor: " + valor)
+    }
+}

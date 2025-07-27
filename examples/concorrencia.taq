@@ -1,0 +1,18 @@
+package main
+
+// Degrau 20: Concorrência com 'go' (goroutines)
+// Permite a execução de múltiplas funções de forma concorrente.
+
+func tarefa(id int) {
+    print("Executando tarefa: " + id)
+}
+
+func main() {
+    // Inicia a execução de duas tarefas em paralelo
+    go tarefa(1)
+    go tarefa(2)
+    
+    // A função main espera um pouco para as goroutines terminarem
+    sleep(1000) // Supondo uma função 'sleep' em milissegundos
+    print("Tarefas finalizadas.")
+}

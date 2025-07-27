@@ -1,0 +1,19 @@
+// Arquivo: matematica.taq
+package matematica
+
+func soma(a, b int) int {
+    return a + b
+}
+
+// Arquivo: main.taq
+package main
+
+import "matematica"
+
+// Degrau 13: Suporte a Módulos
+// Permite organizar o código em diferentes arquivos e pacotes.
+
+func main() {
+    var resultado int = matematica.soma(5, 3)
+    print("Resultado da soma: " + resultado)
+}

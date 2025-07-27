@@ -8,30 +8,39 @@ import (
 
 type TokenType string
 
+type Token struct {
+	Type    TokenType
+	Literal string
+}
+
 const (
+	// Caracteres especiais
 	ILLEGAL = "ILLEGAL"
 	EOF     = "EOF"
 
+	// Identificadores + literais
 	IDENT  = "IDENT"
 	INT    = "INT"
 	STRING = "STRING"
 
+	// Operadores
 	ASSIGN   = "="
 	PLUS     = "+"
 	MINUS    = "-"
 	BANG     = "!"
 	ASTERISK = "*"
 	SLASH    = "/"
-	MODULO   = "%" // NOVO: Operador de módulo
+	MODULO   = "%"
+	LT       = "<"
+	GT       = ">"
+	EQ       = "=="
+	NOT_EQ   = "!="
 
-	LT = "<"
-	GT = ">"
-
-	EQ     = "=="
-	NOT_EQ = "!="
-
+	// Delimitadores
 	COMMA     = ","
 	SEMICOLON = ";"
+	COLON     = ":"
+	DOT       = "."
 
 	LPAREN   = "("
 	RPAREN   = ")"
@@ -40,25 +49,21 @@ const (
 	LBRACKET = "["
 	RBRACKET = "]"
 
+	// Palavras-chave
 	PACKAGE  = "PACKAGE"
 	FUNCTION = "FUNCTION"
 	CONST    = "CONST"
+	LET      = "LET"
 	RETURN   = "RETURN"
 	IF       = "IF"
 	ELSE     = "ELSE"
 	TRUE     = "TRUE"
 	FALSE    = "FALSE"
-
-	LET      = "LET"
 	WHILE    = "WHILE"
 	BREAK    = "BREAK"
 	CONTINUE = "CONTINUE"
+	TYPE     = "TYPE"
 )
-
-type Token struct {
-	Type    TokenType
-	Literal string
-}
 
 var keywords = map[string]TokenType{
 	"package":  PACKAGE,
@@ -73,6 +78,7 @@ var keywords = map[string]TokenType{
 	"while":    WHILE,
 	"break":    BREAK,
 	"continue": CONTINUE,
+	"type":     TYPE,
 }
 
 var (

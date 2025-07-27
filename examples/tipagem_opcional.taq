@@ -1,0 +1,17 @@
+package main
+
+// Degrau 16: Tipagem Estática Opcional
+// Permite ao desenvolvedor escolher entre tipagem dinâmica e estática.
+
+func main() {
+    // Inferência de tipo (dinâmico)
+    let x = 10
+    
+    // Tipagem explícita (estático)
+    let y: int = 20
+    
+    let z = "Taquion" // Inferencia para string
+    
+    print(x + y)
+    print(z)
+}

@@ -1,0 +1,21 @@
+package main
+
+// Classes e Objetos
+// Define um modelo para criar objetos com atributos e métodos.
+
+class Carro {
+    let string marca
+    
+    func new(marca_inicial string) {
+        this.marca = marca_inicial
+    }
+    
+    func obterMarca() string {
+        return this.marca
+    }
+}
+
+func main() {
+    let meuCarro = new Carro("Taquion Motors")
+    print("Marca do carro: " + meuCarro.obterMarca())
+}

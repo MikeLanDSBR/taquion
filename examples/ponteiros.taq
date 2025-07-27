@@ -1,0 +1,16 @@
+package main
+
+// Degrau 12: Introdução de Ponteiros
+// Ponteiros armazenam o endereço de memória de outras variáveis, permitindo a manipulação direta da memória.
+
+func main() {
+    let x int = 10
+    let ptr *int = &x // 'ptr' agora contém o endereço de 'x'
+
+    print("Valor original de x: " + x)
+
+    // Modificando 'x' através do ponteiro
+    *ptr = 20
+
+    print("Novo valor de x: " + x)
+}

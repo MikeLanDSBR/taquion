@@ -1,0 +1,18 @@
+package main
+
+import "strings"
+
+// Degrau 19: Biblioteca Padrão para Manipulação de Strings
+// Funções úteis para operações comuns com strings.
+
+func main() {
+    var texto = "Ola, Mundo Taquion!"
+    
+    print("Tamanho: " + strings.len(texto))
+    print("Maiúsculas: " + strings.toUpper(texto))
+    
+    var partes [3]string = strings.split(texto, " ")
+    for parte in partes {
+        print("Parte: " + parte)
+    }
+}

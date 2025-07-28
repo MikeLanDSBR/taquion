@@ -42,6 +42,7 @@ type SymbolEntry struct {
 	Value     llvm.Value
 	Ptr       llvm.Value
 	Typ       llvm.Type
+	TypeName  string
 	ArrayType llvm.Type
 	IsLiteral bool
 }
@@ -63,6 +64,9 @@ type CodeGenerator struct {
 
 	loopCondBlock llvm.BasicBlock
 	loopEndBlock  llvm.BasicBlock
+
+	structTypes        map[string]llvm.Type
+	structFieldIndices map[string]map[string]int
 }
 
 func NewCodeGenerator() *CodeGenerator {
@@ -76,6 +80,8 @@ func NewCodeGenerator() *CodeGenerator {
 		indentationLevel: 0,
 	}
 	cg.declareCFunctions()
+	cg.structTypes = make(map[string]llvm.Type)
+	cg.structFieldIndices = make(map[string]map[string]int)
 	logger.Println("Nova instância de CodeGenerator criada.")
 	return cg
 }

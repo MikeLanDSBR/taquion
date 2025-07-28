@@ -150,38 +150,3 @@ func (p *Parser) parseTypeLiteral() ast.Expression {
 	p.errors = append(p.errors, "parseTypeLiteral não implementado")
 	return nil
 }
-
-// Para (com prefixo 'ast.' em todos os tipos):
-func (p *Parser) parseCompositeLiteral(typeName *ast.Identifier) ast.Expression {
-	lit := &ast.CompositeLiteral{
-		Token:    p.curToken,
-		TypeName: typeName,
-		Fields:   []*ast.KeyValueExpr{},
-	}
-
-	for !p.peekTokenIs(token.RBRACE) && !p.peekTokenIs(token.EOF) {
-		p.nextToken() // nome do campo
-		key := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-
-		if !p.expectPeek(token.COLON) {
-			return nil
-		}
-		p.nextToken() // valor
-		value := p.parseExpression(LOWEST)
-
-		lit.Fields = append(lit.Fields, &ast.KeyValueExpr{
-			Key:   key,
-			Value: value,
-		})
-
-		if p.peekTokenIs(token.COMMA) {
-			p.nextToken()
-		}
-	}
-
-	if !p.expectPeek(token.RBRACE) {
-		return nil
-	}
-
-	return lit
-}

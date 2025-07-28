@@ -22,6 +22,8 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 		return c.genIdentifier(node)
 	case *ast.InfixExpression:
 		return c.genInfixExpression(node)
+	case *ast.PrefixExpression:
+		return c.genPrefixExpression(node)
 	case *ast.AssignmentExpression:
 		return c.genAssignmentExpression(node)
 	case *ast.CallExpression:
@@ -32,10 +34,12 @@ func (c *CodeGenerator) genExpression(expr ast.Expression) llvm.Value {
 		return c.genArrayLiteral(node)
 	case *ast.IndexExpression:
 		return c.genIndexExpression(node)
-	case *ast.PrefixExpression:
-		return c.genPrefixExpression(node)
 	case *ast.FunctionLiteral:
 		return c.genFunctionLiteral(node)
+	case *ast.MemberExpression:
+		return c.genMemberExpression(node)
+	case *ast.CompositeLiteral:
+		return c.genCompositeLiteral(node)
 	default:
 		panic(fmt.Sprintf("Expressão não suportada: %T\n", node))
 	}

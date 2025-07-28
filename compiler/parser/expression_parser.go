@@ -31,6 +31,14 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 }
 
 func (p *Parser) parseIdentifier() ast.Expression {
+	// Se o próximo token for um abre chaves, isso é um literal de struct
+	if p.peekTokenIs(token.LBRACE) {
+		typeName := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+		p.nextToken() // consome o nome do tipo para que curToken seja '{'
+		return p.parseCompositeLiteral(typeName)
+	}
+
+	// Caso contrário, é apenas um identificador normal
 	return &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 }
 
@@ -172,4 +180,46 @@ func (p *Parser) parseMemberExpression(left ast.Expression) ast.Expression {
 		Value: p.curToken.Literal,
 	}
 	return exp
+}
+
+// parseCompositeLiteral analisa um literal composto,
+// aceitando nome:valor ou nome=valor, e vírgulas ou ponto‑e‑vírgula como separador.
+func (p *Parser) parseCompositeLiteral(typeName *ast.Identifier) ast.Expression {
+	lit := &ast.CompositeLiteral{
+		Token:    p.curToken,
+		TypeName: typeName,
+		Fields:   []*ast.KeyValueExpr{},
+	}
+
+	// repete enquanto não fechar '}' ou chegar ao EOF
+	for !p.peekTokenIs(token.RBRACE) && !p.peekTokenIs(token.EOF) {
+		p.nextToken() // avança para o IDENT do campo
+		key := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+		// aceita ':' ou '='
+		if p.peekTokenIs(token.COLON) || p.peekTokenIs(token.ASSIGN) {
+			p.nextToken() // consome ':' ou '='
+		} else {
+			p.errors = append(p.errors, fmt.Sprintf("esperava ':' ou '=', mas obteve %q", p.peekToken.Literal))
+			return nil
+		}
+
+		p.nextToken() // avança para o valor
+		value := p.parseExpression(LOWEST)
+
+		lit.Fields = append(lit.Fields, &ast.KeyValueExpr{
+			Key:   key,
+			Value: value,
+		})
+
+		// aceita ',' ou ';' como separador opcional
+		if p.peekTokenIs(token.COMMA) || p.peekTokenIs(token.SEMICOLON) {
+			p.nextToken()
+		}
+	}
+
+	if !p.expectPeek(token.RBRACE) {
+		return nil
+	}
+	return lit
 }

@@ -1,7 +1,7 @@
+// Arquivo: parser/statement_parser.go
 package parser
 
 import (
-	"fmt"
 	"taquion/compiler/ast"
 	"taquion/compiler/token"
 )
@@ -174,13 +174,16 @@ func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 }
 
 func (p *Parser) parseTypeDeclaration() *ast.TypeDeclaration {
+	// Cria o nó da declaração de tipo. Token atual é 'type'.
 	stmt := &ast.TypeDeclaration{Token: p.curToken}
 
+	// Espera o nome do tipo (ex: Pessoa)
 	if !p.expectPeek(token.IDENT) {
 		return nil
 	}
 	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
+	// Espera o abre chaves '{' que inicia o corpo do tipo
 	if !p.expectPeek(token.LBRACE) {
 		return nil
 	}
@@ -188,37 +191,63 @@ func (p *Parser) parseTypeDeclaration() *ast.TypeDeclaration {
 	stmt.Fields = []*ast.StructField{}
 	stmt.Methods = []*ast.FunctionLiteral{}
 
-	// Enquanto não fechar a struct...
-	for !p.curTokenIs(token.RBRACE) && !p.peekTokenIs(token.EOF) {
-		p.nextToken()
+	// Loop para analisar o corpo do tipo (campos e métodos)
+	// O loop continua enquanto não encontrarmos a chave de fechamento '}'
+	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
 
-		// Método embutido
+		// CASO 1: É um método
 		if p.curTokenIs(token.FUNCTION) {
-			fnExpr := p.parseFunctionLiteral()
-			fn, ok := fnExpr.(*ast.FunctionLiteral)
-			if ok && fn != nil {
-				stmt.Methods = append(stmt.Methods, fn)
+			method := &ast.FunctionLiteral{Token: p.curToken}
+
+			if !p.expectPeek(token.IDENT) { // Nome do método
+				return nil
 			}
-			continue
-		}
+			method.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
-		// Campo do tipo: nome: tipo
-		if p.curToken.Type == token.IDENT && p.peekToken.Type == token.COLON {
-			field := &ast.StructField{Name: &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}}
+			if !p.expectPeek(token.LPAREN) { // Parâmetros
+				return nil
+			}
+			method.Parameters = p.parseFunctionParameters()
 
-			p.nextToken() // Pula ':'
-			p.nextToken() // Vai pro tipo
+			// Suporte para tipo de retorno opcional (ex: func saudacao() string {...})
+			// Se não for uma chave, deve ser o tipo de retorno.
+			if !p.peekTokenIs(token.LBRACE) {
+				p.nextToken() // Consome o token do tipo (ex: 'string')
+				// Você pode querer criar um nó AST para o tipo de retorno aqui
+			}
 
-			field.Type = p.parseExpression(LOWEST)
+			if !p.expectPeek(token.LBRACE) { // Corpo do método
+				return nil
+			}
+			method.Body = p.parseBlockStatement() // Esta função termina com curToken em '}'
+			stmt.Methods = append(stmt.Methods, method)
+
+			// CASO 2: É um campo
+		} else if p.curTokenIs(token.IDENT) && p.peekTokenIs(token.COLON) {
+			field := &ast.StructField{}
+			field.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+			p.nextToken() // Consome o nome do campo
+			p.nextToken() // Consome o ':'
+
+			field.Type = p.parseExpression(LOWEST) // Analisa a expressão do tipo
 			stmt.Fields = append(stmt.Fields, field)
+
+			// CASO 3: Token inesperado
+		} else {
+			// Pula tokens inesperados para evitar loop infinito
+			p.nextToken()
 			continue
 		}
 
-		// Se for lixo, pula
-		p.errors = append(p.errors, fmt.Sprintf("token inesperado em type: %s", p.curToken.Literal))
+		// Após analisar um campo ou método, avança para o próximo token
+		// para iniciar a próxima iteração do loop.
+		p.nextToken()
 	}
 
-	if !p.expectPeek(token.RBRACE) {
+	// Garante que a declaração de tipo foi fechada corretamente com '}'
+	if !p.curTokenIs(token.RBRACE) {
+		p.errors = append(p.errors, "esperava '}' para fechar a declaração de tipo")
 		return nil
 	}
 

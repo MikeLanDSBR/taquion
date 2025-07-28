@@ -1,19 +1,19 @@
 package main
 
 type Pessoa {
-    nome:    string
-    idade:   int8
+    nome:  string
+    idade: int8
 
-    func saudacao() string{
+    func saudacao() {
         return "Olá, meu nome é " + self.nome
     }
 }
 
 func main() {
     let p = Pessoa {
-        nome: "Carlos",
-        idade: 30
-    }
+        nome = "Carlos"
+        idade = 30
+    };
 
     print(p.saudacao())
     print("Idade: ${p.idade}")

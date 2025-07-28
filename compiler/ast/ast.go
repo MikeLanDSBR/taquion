@@ -56,6 +56,41 @@ type Program struct {
 	Statements []Statement
 }
 
+type CompositeLiteral struct {
+	Token    token.Token // o token de abertura '{'
+	TypeName *Identifier // Pessoa
+	Fields   []*KeyValueExpr
+}
+
+func (cl *CompositeLiteral) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(cl.TypeName.String())
+	out.WriteString(" { ")
+
+	for i, field := range cl.Fields {
+		out.WriteString(field.String())
+		if i < len(cl.Fields)-1 {
+			out.WriteString(", ")
+		}
+	}
+
+	out.WriteString(" }")
+	return out.String()
+}
+
+func (cl *CompositeLiteral) expressionNode()      {}
+func (cl *CompositeLiteral) TokenLiteral() string { return cl.Token.Literal }
+
+type KeyValueExpr struct {
+	Key   *Identifier
+	Value Expression
+}
+
+func (kv *KeyValueExpr) String() string {
+	return kv.Key.String() + ": " + kv.Value.String()
+}
+
 func (p *Program) TokenLiteral() string {
 	if len(p.Statements) > 0 {
 		return p.Statements[0].TokenLiteral()
@@ -76,11 +111,29 @@ func (p *Program) String() string {
 type Identifier struct {
 	Token token.Token
 	Value string
+	Type  *Identifier
 }
 
 func (i *Identifier) expressionNode()      {}
 func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
-func (i *Identifier) String() string       { return i.Value }
+
+func (i *Identifier) String() string {
+	if i.Type != nil {
+		return i.Value + ": " + i.Type.String()
+	}
+	return i.Value
+}
+
+func (i *Identifier) TypeNode() bool {
+	return i.Type != nil
+}
+
+func (i *Identifier) TypeString() string {
+	if i.Type != nil {
+		return i.Type.String()
+	}
+	return "unknown"
+}
 
 func (il *IntegerLiteral) expressionNode()      {}
 func (il *IntegerLiteral) TokenLiteral() string { return il.Token.Literal }

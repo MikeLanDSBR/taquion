@@ -1,24 +1,20 @@
 package main
 
-/// Definição de tipo com inicialização inline e método associado
-
 type Pessoa {
     nome:    string
     idade:   int8
 
-    func saudacao() {
+    func saudacao() string{
         return "Olá, meu nome é " + self.nome
     }
 }
 
 func main() {
-    // Inicialização com sintaxe compacta
     let p = Pessoa {
         nome: "Carlos",
         idade: 30
     }
 
-    // Impressão usando método e interpolação
     print(p.saudacao())
     print("Idade: ${p.idade}")
 }

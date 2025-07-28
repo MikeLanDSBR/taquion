@@ -171,3 +171,19 @@ func (ie *IndexExpression) String() string {
 	out.WriteString("])")
 	return out.String()
 }
+
+type MemberExpression struct {
+	Token    token.Token // o token '.'
+	Object   Expression  // ex: "obj"
+	Property *Identifier // ex: "prop"
+}
+
+func (me *MemberExpression) expressionNode()      {}
+func (me *MemberExpression) TokenLiteral() string { return me.Token.Literal }
+func (me *MemberExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString(me.Object.String())
+	out.WriteString(".")
+	out.WriteString(me.Property.String())
+	return out.String()
+}

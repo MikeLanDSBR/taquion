@@ -41,13 +41,17 @@ const (
 	SEMICOLON = ";"
 	COLON     = ":"
 	DOT       = "."
+	LPAREN    = "("
+	RPAREN    = ")"
+	LBRACE    = "{"
+	RBRACE    = "}"
+	LBRACKET  = "["
+	RBRACKET  = "]"
 
-	LPAREN   = "("
-	RPAREN   = ")"
-	LBRACE   = "{"
-	RBRACE   = "}"
-	LBRACKET = "["
-	RBRACKET = "]"
+	// Interpolação de strings
+	DOLLAR       = "$"
+	INTERP_START = "${"
+	INTERP_END   = "}"
 
 	// Palavras-chave
 	PACKAGE  = "PACKAGE"

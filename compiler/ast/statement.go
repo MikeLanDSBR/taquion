@@ -166,3 +166,50 @@ type ContinueStatement struct {
 func (cs *ContinueStatement) statementNode()       {}
 func (cs *ContinueStatement) TokenLiteral() string { return cs.Token.Literal }
 func (cs *ContinueStatement) String() string       { return cs.Token.Literal + ";" }
+
+type TypeDeclaration struct {
+	Token   token.Token
+	Name    *Identifier
+	Fields  []*StructField     // <- novo!
+	Methods []*FunctionLiteral // <- novo!
+}
+
+type StructField struct {
+	Name *Identifier
+	Type Expression // pode ser um Identifier ou tipo composto no futuro
+}
+
+func (sf *StructField) String() string {
+	var out bytes.Buffer
+	out.WriteString(sf.Name.String())
+	if sf.Type != nil {
+		out.WriteString(": ")
+		out.WriteString(sf.Type.String())
+	}
+	return out.String()
+}
+
+func (td *TypeDeclaration) statementNode()       {}
+func (td *TypeDeclaration) TokenLiteral() string { return td.Token.Literal }
+
+func (td *TypeDeclaration) String() string {
+	var out bytes.Buffer
+	out.WriteString("type ")
+	out.WriteString(td.Name.String())
+	out.WriteString(" {\n")
+
+	for _, field := range td.Fields {
+		out.WriteString("  ")
+		out.WriteString(field.String())
+		out.WriteString("\n")
+	}
+
+	for _, method := range td.Methods {
+		out.WriteString("  ")
+		out.WriteString(method.String())
+		out.WriteString("\n")
+	}
+
+	out.WriteString("}")
+	return out.String()
+}

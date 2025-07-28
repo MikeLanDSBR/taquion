@@ -1,3 +1,4 @@
+// Arquivo: parser/helpers.go
 package parser
 
 import (
@@ -69,23 +70,49 @@ func (p *Parser) curPrecedence() int {
 
 func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 	identifiers := []*ast.Identifier{}
+
+	// Nenhum parâmetro
 	if p.peekTokenIs(token.RPAREN) {
 		p.nextToken()
 		return identifiers
 	}
+
 	p.nextToken()
-	ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	ident := p.parseParameter()
+	if ident == nil {
+		return nil
+	}
 	identifiers = append(identifiers, ident)
+
 	for p.peekTokenIs(token.COMMA) {
 		p.nextToken()
 		p.nextToken()
-		ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+		ident := p.parseParameter()
+		if ident == nil {
+			return nil
+		}
 		identifiers = append(identifiers, ident)
 	}
+
 	if !p.expectPeek(token.RPAREN) {
 		return nil
 	}
 	return identifiers
+}
+
+func (p *Parser) parseParameter() *ast.Identifier {
+	ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+	// Checa se tem anotação de tipo: ex: x: int
+	if p.peekTokenIs(token.COLON) {
+		p.nextToken() // consome ':'
+		p.nextToken() // vai pro tipo
+		ident.Type = &ast.Identifier{
+			Token: p.curToken,
+			Value: p.curToken.Literal,
+		}
+	}
+	return ident
 }
 
 func (p *Parser) parseExpressionList(end token.TokenType) []ast.Expression {

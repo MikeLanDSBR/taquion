@@ -1,4 +1,4 @@
-// compiler/lexer/helpers.go
+// lexer/helpers.go
 package lexer
 
 import "taquion/compiler/token"

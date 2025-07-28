@@ -1,3 +1,4 @@
+// lexer/lexer.go
 package lexer
 
 import (
@@ -80,12 +81,18 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.ASTERISK, l.ch)
 	case '/':
 		tok = newToken(token.SLASH, l.ch)
-	case '%': // NOVO: Adicionado para o operador de módulo
+	case '%':
 		tok = newToken(token.MODULO, l.ch)
 	case '<':
 		tok = newToken(token.LT, l.ch)
 	case '>':
 		tok = newToken(token.GT, l.ch)
+	case ':':
+		tok = newToken(token.COLON, l.ch)
+	case '.':
+		tok = newToken(token.DOT, l.ch)
+	case '$':
+		tok = newToken(token.DOLLAR, l.ch)
 	case '{':
 		tok = newToken(token.LBRACE, l.ch)
 	case '}':
@@ -131,7 +138,11 @@ func (l *Lexer) readIdentifier() string {
 
 func (l *Lexer) readNumber() string {
 	position := l.position
-	for isDigit(l.ch) {
+	hasDot := false
+	for isDigit(l.ch) || (l.ch == '.' && !hasDot) {
+		if l.ch == '.' {
+			hasDot = true
+		}
 		l.readChar()
 	}
 	return l.input[position:l.position]

@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"taquion/compiler/ast"
 	"taquion/compiler/token"
 )
@@ -20,6 +21,8 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parsePackageStatement()
 	case token.FUNCTION:
 		return p.parseFunctionDeclaration()
+	case token.TYPE:
+		return p.parseTypeDeclaration()
 	case token.WHILE:
 		return p.parseWhileStatement()
 	case token.BREAK:
@@ -94,11 +97,14 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 
 	// Continua analisando statements até encontrar um fecha chaves '}' ou o fim do arquivo.
 	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
+		if p.curTokenIs(token.SEMICOLON) {
+			p.nextToken()
+			continue
+		}
 		stmt := p.parseStatement()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
-		// Avança para o próximo statement dentro do bloco.
 		p.nextToken()
 	}
 
@@ -164,5 +170,57 @@ func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}
+	return stmt
+}
+
+func (p *Parser) parseTypeDeclaration() *ast.TypeDeclaration {
+	stmt := &ast.TypeDeclaration{Token: p.curToken}
+
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+
+	stmt.Fields = []*ast.StructField{}
+	stmt.Methods = []*ast.FunctionLiteral{}
+
+	// Enquanto não fechar a struct...
+	for !p.curTokenIs(token.RBRACE) && !p.peekTokenIs(token.EOF) {
+		p.nextToken()
+
+		// Método embutido
+		if p.curTokenIs(token.FUNCTION) {
+			fnExpr := p.parseFunctionLiteral()
+			fn, ok := fnExpr.(*ast.FunctionLiteral)
+			if ok && fn != nil {
+				stmt.Methods = append(stmt.Methods, fn)
+			}
+			continue
+		}
+
+		// Campo do tipo: nome: tipo
+		if p.curToken.Type == token.IDENT && p.peekToken.Type == token.COLON {
+			field := &ast.StructField{Name: &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}}
+
+			p.nextToken() // Pula ':'
+			p.nextToken() // Vai pro tipo
+
+			field.Type = p.parseExpression(LOWEST)
+			stmt.Fields = append(stmt.Fields, field)
+			continue
+		}
+
+		// Se for lixo, pula
+		p.errors = append(p.errors, fmt.Sprintf("token inesperado em type: %s", p.curToken.Literal))
+	}
+
+	if !p.expectPeek(token.RBRACE) {
+		return nil
+	}
+
 	return stmt
 }

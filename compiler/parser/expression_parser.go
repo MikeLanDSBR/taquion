@@ -1,3 +1,4 @@
+// Arquivo: parser/expression_parser.go
 package parser
 
 import (
@@ -155,6 +156,20 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	exp.Index = p.parseExpression(LOWEST)
 	if !p.expectPeek(token.RBRACKET) {
 		return nil
+	}
+	return exp
+}
+
+func (p *Parser) parseMemberExpression(left ast.Expression) ast.Expression {
+	exp := &ast.MemberExpression{Token: p.curToken, Object: left}
+
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+
+	exp.Property = &ast.Identifier{
+		Token: p.curToken,
+		Value: p.curToken.Literal,
 	}
 	return exp
 }

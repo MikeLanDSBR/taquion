@@ -60,8 +60,9 @@ var precedences = map[token.TokenType]int{
 	token.MINUS:    SUM,
 	token.SLASH:    PRODUCT,
 	token.ASTERISK: PRODUCT,
-	token.MODULO:   PRODUCT, // Adicionei a precedência para o novo token
+	token.MODULO:   PRODUCT,
 	token.LPAREN:   CALL,
+	token.DOT:      CALL,
 	token.ASSIGN:   ASSIGN,
 	token.LBRACKET: INDEX,
 }
@@ -98,13 +99,15 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.IF, p.parseIfExpression)
 	p.registerPrefix(token.FUNCTION, p.parseFunctionLiteral)
 	p.registerPrefix(token.LBRACKET, p.parseArrayLiteral)
+	p.registerPrefix(token.INTERP_START, p.parseInterpolation)
+	p.registerPrefix(token.TYPE, p.parseTypeLiteral)
 
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.registerInfix(token.PLUS, p.parseInfixExpression)
 	p.registerInfix(token.MINUS, p.parseInfixExpression)
 	p.registerInfix(token.SLASH, p.parseInfixExpression)
 	p.registerInfix(token.ASTERISK, p.parseInfixExpression)
-	p.registerInfix(token.MODULO, p.parseInfixExpression) // Adicionei o registro para o novo token
+	p.registerInfix(token.MODULO, p.parseInfixExpression)
 	p.registerInfix(token.EQ, p.parseInfixExpression)
 	p.registerInfix(token.NOT_EQ, p.parseInfixExpression)
 	p.registerInfix(token.LT, p.parseInfixExpression)
@@ -112,6 +115,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.LPAREN, p.parseCallExpression)
 	p.registerInfix(token.ASSIGN, p.parseAssignmentExpression)
 	p.registerInfix(token.LBRACKET, p.parseIndexExpression)
+	p.registerInfix(token.DOT, p.parseMemberExpression)
 
 	p.nextToken()
 	p.nextToken()
@@ -132,4 +136,52 @@ func (p *Parser) ParseProgram() *ast.Program {
 		p.nextToken()
 	}
 	return program
+}
+
+func (p *Parser) parseInterpolation() ast.Expression {
+	// TO-DO: implementar parsing de interpolação de string
+	// por enquanto, só retorna nil ou erro
+	p.errors = append(p.errors, "parseInterpolation não implementado")
+	return nil
+}
+
+func (p *Parser) parseTypeLiteral() ast.Expression {
+	// TO-DO: implementar parser de type literals
+	p.errors = append(p.errors, "parseTypeLiteral não implementado")
+	return nil
+}
+
+// Para (com prefixo 'ast.' em todos os tipos):
+func (p *Parser) parseCompositeLiteral(typeName *ast.Identifier) ast.Expression {
+	lit := &ast.CompositeLiteral{
+		Token:    p.curToken,
+		TypeName: typeName,
+		Fields:   []*ast.KeyValueExpr{},
+	}
+
+	for !p.peekTokenIs(token.RBRACE) && !p.peekTokenIs(token.EOF) {
+		p.nextToken() // nome do campo
+		key := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+		if !p.expectPeek(token.COLON) {
+			return nil
+		}
+		p.nextToken() // valor
+		value := p.parseExpression(LOWEST)
+
+		lit.Fields = append(lit.Fields, &ast.KeyValueExpr{
+			Key:   key,
+			Value: value,
+		})
+
+		if p.peekTokenIs(token.COMMA) {
+			p.nextToken()
+		}
+	}
+
+	if !p.expectPeek(token.RBRACE) {
+		return nil
+	}
+
+	return lit
 }

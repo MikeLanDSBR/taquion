@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"taquion/compiler/ast"
 
-	"github.com/MikeLanDSBR/go-llvm"
+	"github.com/taquion-lang/go-llvm"
 )
 
 // genFunctionDeclaration gera código para a declaração de funções.

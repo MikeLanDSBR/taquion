@@ -8,7 +8,7 @@ import (
 	"sync"
 	"taquion/compiler/ast"
 
-	"github.com/MikeLanDSBR/go-llvm"
+	"github.com/taquion-lang/go-llvm"
 )
 
 var (

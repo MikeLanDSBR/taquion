@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"taquion/compiler/ast"
 
-	"github.com/MikeLanDSBR/go-llvm"
+	"github.com/taquion-lang/go-llvm"
 )
 
 // genIntegerLiteral gera um literal inteiro.

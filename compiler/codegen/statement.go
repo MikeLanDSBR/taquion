@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"taquion/compiler/ast"
 
-	"github.com/MikeLanDSBR/go-llvm"
+	"github.com/taquion-lang/go-llvm"
 )
 
 // genStatement é o ponto de entrada para a geração de código de uma declaração.

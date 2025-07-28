@@ -2,6 +2,6 @@ module taquion/compiler
 
 go 1.24.4
 
-require github.com/MikeLanDSBR/go-llvm v0.0.0-20250726153000-14db710
+require github.com/taquion-lang/go-llvm v0.0.0-20250728153000-e7d6c79
 
-replace github.com/MikeLanDSBR/go-llvm => D:/Github/MikeLanDSBR/go-llvm
+replace github.com/taquion-lang/go-llvm => D:/Github/taquion-lang/go-llvm

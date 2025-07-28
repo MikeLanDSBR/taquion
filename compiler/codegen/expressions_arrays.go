@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"taquion/compiler/ast"
 
-	"github.com/MikeLanDSBR/go-llvm"
+	"github.com/taquion-lang/go-llvm"
 )
 
 // genArrayLiteral gera código para um literal de array.

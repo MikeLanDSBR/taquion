@@ -5,7 +5,7 @@ import (
 	"taquion/compiler/ast"
 	"taquion/compiler/token"
 
-	"github.com/MikeLanDSBR/go-llvm"
+	"github.com/taquion-lang/go-llvm"
 )
 
 // genInfixExpression gera o código para uma expressão infixa.

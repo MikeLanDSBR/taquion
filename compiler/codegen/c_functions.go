@@ -1,7 +1,7 @@
 package codegen
 
 import (
-	"github.com/MikeLanDSBR/go-llvm"
+	"github.com/taquion-lang/go-llvm"
 )
 
 // declareCFunctions declara as funções C externas necessárias para o compilador.
